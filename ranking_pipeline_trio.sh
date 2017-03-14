@@ -51,7 +51,7 @@ perl /pico/home/userexternal/aciolfi0/phenolyzer/disease_annotation.pl -f -p --g
 /pico/work/IscrC_FoRWArDS_1/NGS_tools/phenolyzer_score_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_unphased_filtered.vcf" $outdir"Pheno/"$ID".final_gene_list" 2>> $outdir$ID"_ranking_log"
 
 # applico il nostro schema di scoring alle varianti
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/prioritizer_maxPopAF_ExAC.py $phenolist $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_unphased_filtered.phenolyzer.vcf" 2>> $outdir$ID"_ranking_log"
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/prioritizer_maxPopAF_ExAC_intervar.py $phenolist $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_unphased_filtered.phenolyzer.vcf" 2>> $outdir$ID"_ranking_log"
 
 # filtro in base alle differenti modalità di trasmissione
 /pico/work/IscrC_FoRWArDS_1/NGS_tools/FamilyTrasmission_denovocompound.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_unphased_filtered.phenolyzer.scored.tsv" $ID $ID_father $ID_mother 2>> $outdir$ID"_ranking_log"
