@@ -1,3 +1,2 @@
 # Tartagenia
-Pipeline di prioritizzazione delle varianti
-per singoli e trio
+Pipeline di chiamata, annotazione e prioritizzazione delle varianti
