@@ -1,0 +1,645 @@
+bwakit=/pico/home/userexternal/abrusell/bwa.kit-0.7.12/
+GATK_HOME=/cineca/prod/applications/gatk/3.6/jre--1.7.0_72/
+PICARD_HOME=/cineca/prod/applications/picard/2.3.0/binary/bin/
+java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
+
+# definizione delle variabili di input
+reference=/pico/work/IscrC_FoRWArDS_1/db/reference/ucsc.hg19.fasta
+ref_dict=${reference%%.fasta}.dict
+dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_147_hg19.vcf.gz
+#target_regions=/pico/work/IscrC_FoRWArDS_1/db/target_regions/
+#mir_target_regions=/pico/work/IscrC_FoRWArDS_1/db/hg38/target_regions/mir/
+cosmic=/pico/work/IscrC_FoRWArDS_1/db/cosmic/CosmicCodingNonCodingVariantsV76_fixed.vcf.gz
+onethous_genomes=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_omni2.5.hg19.vcf.gz
+knownInd_1=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.indels.hg19.vcf.gz
+knownInd_2=/pico/work/IscrC_FoRWArDS_1/db/snp/Mills_and_1000G_gold_standard.indels.hg19.vcf.gz
+mendeliome=/pico/work/IscrC_FoRWArDS_1/db/refGene/2016/Mendeliome+ACMG+DDG2P_refGene_exons50_sorted.bed
+
+
+
+time1=$( date "+%s" )
+date >> $outdir$ID"_Job_Time.log" 
+
+if [ $fqc == "y" ]
+then
+        echo "Fastqc: analyzing fastq files" >> $outdir$ID"_Job_Time.log"
+        fastqc -t 2 $outdir$ID"_all_fq_reads_1.fq.gz" $outdir$ID"_all_fq_reads_2.fq.gz" -o $outdir 2> $outdir$ID"_fastQC_log"
+        time2=$( date "+%s" )
+        echo [elapsed time] $((($time2 - $time1)/60)) min >> $outdir$ID"_Job_Time.log"
+fi
+
+rm -f $outdir$ID"_all_fq_reads_1.fq.gz" $outdir$ID"_all_fq_reads_2.fq.gz"
+
+time2=$( date "+%s" )
+
+if [ $qscore == "i" ]
+then
+        echo "Converting Illumina scores to Sanger" >> $outdir$ID"_Job_Time.log"
+        for i in $(seq 1 $fq_couple); do
+		$bwakit"seqtk" seq -Q64 -V $fastq_dir${fastq_name_original_1[$i]} | gzip > $outdir${fastq_name_original_1[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+                $bwakit"seqtk" seq -Q64 -V $fastq_dir${fastq_name_original_2[$i]} | gzip > $outdir${fastq_name_original_2[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+        done
+        wait
+	time3=$( date "+%s" )
+	echo [elapsed time] $((($time3 - $time2)/60)) min >> $outdir$ID"_Job_Time.log"
+	echo "Mapping reads to reference with bwa mem (bwakit), removing duplicated reads (samblaster), sorting and indexing (samtools):" >> $outdir$ID"_Job_Time.log"
+        for i in $(seq 1 $fq_couple); do
+	        $bwakit"seqtk" mergepe $outdir${fastq_name_original_1[$i]}"_converted" $outdir${fastq_name_original_2[$i]}"_converted" | $bwakit"bwa" mem -p -t 20 -R"@RG\tID:"${lane_id[$i]}"\tLB:"$ID"\tSM:"$ID"\tPU:"${lane_id[$i]}"\tPL:ILLUMINA" $reference - 2> $outdir$ID"_"${lane_id[$i]}"_aln.log.bwamem" | $bwakit"samblaster" -r 2> $outdir$ID"_"${lane_id[$i]}"_aln.log.dedup" | $bwakit"samtools" sort -@ 20 -m5G - $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup"; $bwakit"samtools" index $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" 2>> $outdir$ID"_"${lane_id[$i]}"_bwakit_log" &
+	done
+        wait
+        time3bis=$( date "+%s" )
+        echo [elapsed time] $((($time3bis - $time3)/60)) min >> $outdir$ID"_Job_Time.log"
+
+elif [ $qscore == "s" ]
+then
+        echo "Mapping reads to reference with bwa mem (bwakit), removing duplicated reads (samblaster), sorting and indexing (samtools):" >> $outdir$ID"_Job_Time.log"
+        for i in $(seq 1 $fq_couple); do
+	        $bwakit"seqtk" mergepe $fastq_dir${fastq_name_original_1[$i]} $fastq_dir${fastq_name_original_2[$i]} | $bwakit"bwa" mem -p -t 20 -R"@RG\tID:"${lane_id[$i]}"\tLB:"$ID"\tSM:"$ID"\tPU:"${lane_id[$i]}"\tPL:ILLUMINA" $reference - 2> $outdir$ID"_"${lane_id[$i]}"_aln.log.bwamem" | $bwakit"samblaster" -r 2> $outdir$ID"_"${lane_id[$i]}"_aln.log.dedup" | $bwakit"samtools" sort -@ 20 -m5G - $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup" ; $bwakit"samtools" index $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" 2>> $outdir$ID"_"${lane_id[$i]}"_bwakit_log" &
+	done
+        wait
+
+        time3bis=$( date "+%s" )
+        echo [elapsed time] $((($time3bis - $time2)/60)) min >> $outdir$ID"_Job_Time.log"
+fi
+
+time4=$( date "+%s" )
+time5=$( date "+%s" )
+
+######################################################################################
+## N.B. In accordo con le Best Practices 2016 rimuovo il riallin intorno agli indels #
+######################################################################################
+
+#riallineamento locale intorno agli indels con GATK:PER-LANE!
+# prima identifico possibili target regions per il riallineamento
+# all'iniizo avevo inserito anche l'opzione --fix_misencoded_quality_scores
+# poi l'ho eliminata perche' se il GATK trova il bam tutto codificato bene con
+# il sanger score mi da' errore e si blocca!
+#echo "GATK local realignment: creating lists" >> $outdir$ID"_Job_Time.log"
+#for i in $(seq 1 $fq_couple); do
+#        for j in {1..24}; do
+#                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+#                -nt 2 \
+#                -T RealignerTargetCreator \
+#                -L $targetRegChipDir"/"$j".bed" \
+#                --interval_padding 150 \
+#		-R $reference \
+#                -I $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" \
+#                -o $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup.list" \
+#                -known $knownInd_2 \
+#		--filter_mismatching_base_and_quals \
+#                >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+#        done
+#        wait
+#done
+
+## poi riallineo il bam file per una call migliore: PER-LANE!
+## --------------- don't bother with BAQ here, I will calculate it in table recalibrator
+## con l'opzione -L riduco un po' il tempo di calcolo
+## all'iniizo avevo inserito anche l'opzione --fix_misencoded_quality_scores
+## poi l'ho eliminato perche' se il GATK trova il bam tutto codificato bene
+## con il sanger score mi da' errore e si blocca!
+## aggiunto --filter_bases_not_stored per problema su dei fastq di bassa qualita'
+time6=$( date "+%s" )
+#echo [elapsed time] $((($time6 - $time5)/60)) min >> $outdir$ID"_Job_Time.log"
+
+#echo "GATK local realignment: applying lists" >> $outdir$ID"_Job_Time.log"
+#for i in $(seq 1 $fq_couple); do
+#        for j in {1..24}; do
+#                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+#                -T IndelRealigner \
+#		-L $targetRegChipDir"/"$j".bed" \
+#                --interval_padding 150 \
+#		-R $reference \
+#                --targetIntervals $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup.list" \
+#                -known $knownInd_2 \
+#                -I $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" \
+#                -o $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup_.bam" \
+#                --filter_bases_not_stored \
+#                >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+#        done
+#        wait
+#done
+
+
+time7=$( date "+%s" )
+#echo [elapsed time] $((($time7 - $time6)/60)) min >> $outdir$ID"_Job_Time.log"
+
+################################################################################
+
+
+# base quality score recalibration: per-sample!
+# count covariates. This step creates a .grp file which is needed for the next
+# step and requires a dbSNP file.
+echo "Base quality score recalibration: creating .grp files" >> $outdir$ID"_Job_Time.log"
+$java -Xmx8g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-nct 8 \
+-T BaseRecalibrator \
+-L $targetRegChipDir"/allchrs.bed" \
+--interval_padding 150 \
+-R $reference \
+-knownSites:dbsnp,VCF $dbSNP_file \
+-knownSites:dbsnp,VCF $knownInd_2 \
+$(for i in $(seq 1 $fq_couple); do echo "-I "$outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+-cov ReadGroupCovariate \
+-cov QualityScoreCovariate \
+-cov CycleCovariate \
+-cov ContextCovariate \
+-o $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+#uncomment this part only if you want to check BQSR results
+#echo "Base quality score recalibration: creating second .grp files" >>
+#$outdir$ID"_Job_Time.log"
+#$java -Xmx8g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+#-nct 8 \
+#-T BaseRecalibrator \
+#-L $target_regions"/allchrs.bed" \
+#--interval_padding 150 \
+#-R $reference \
+#-knownSites:dbsnp,VCF $dbSNP_file \
+#-knownSites:dbsnp,VCF $knownInd_2 \
+#$(for i in $(seq 1 $fq_couple); do for j in {1..24}; do echo "-I
+#"$outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup_.bam"; done; done) \
+#-cov ReadGroupCovariate \
+#-cov QualityScoreCovariate \
+#-cov CycleCovariate \
+#-cov ContextCovariate \
+#-BQSR $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+#-o $outdir$ID"_aln_sort_nodup_recalc_data_AFTER.grp" \
+#>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+#
+## Finally generate the plots and also keep a copy of the csv (optional)
+#$java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+#-T AnalyzeCovariates \
+#-R $reference \
+#-before $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+#-after $outdir$ID"_aln_sort_nodup_recalc_data_AFTER.grp" \
+#-csv $outdir$ID"_BQSR.csv" \
+#-plots $outdir$ID"_plots_BQSR.pdf" \
+#>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+
+# table recalibration, applico la base recalibration dello step precedente: 
+# faccio direttamente qui il merge per-sample
+# nel bam di output, così risparmio un passaggio
+# ricalcolo anche il baq (Per-base alignment qualities); BAQ is low if the
+# base is aligned to a different reference base
+# in a suboptimal alignment, and in this case a mismatch should contribute
+# little to SNP calling even if the base quality is high
+# http://www.broadinstitute.org/gsa/wiki/index.php/Per-base_alignment_qualities_%28BAQ%29_in_the_GATK
+
+time7bis=$( date "+%s" )
+echo [elapsed time] $((($time7bis - $time7)/60)) min >> $outdir$ID"_Job_Time.log"
+
+echo "Base quality score recalibration: applying recalibration" >> $outdir$ID"_Job_Time.log"
+for j in {1..22} X Y; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 4 \
+	-L chr$j \
+        -T PrintReads \
+        -R $reference \
+        $(for i in $(seq 1 $fq_couple); do echo "-I "$outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+        -o $outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
+        -BQSR $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+        -baq RECALCULATE \
+        >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+done
+wait
+
+mv $outdir$ID"_X_aln_sort_nodup_recalc.bam" $outdir$ID"_23_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_X_aln_sort_nodup_recalc.bai" $outdir$ID"_23_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_X_GATK_log" $outdir$ID"_23_GATK_log"
+mv $outdir$ID"_Y_aln_sort_nodup_recalc.bam" $outdir$ID"_24_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_Y_aln_sort_nodup_recalc.bai" $outdir$ID"_24_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_Y_GATK_log" $outdir$ID"_24_GATK_log"
+
+time8=$( date "+%s" )
+echo [elapsed time] $((($time8 - $time7bis)/60)) min >> $outdir$ID"_Job_Time.log"
+
+
+# Lascio il bam splittato a livello di chrom per la chiamata delle varianti, 
+# altrimenti aumento troppo i tempi di esecuzione.
+# Effettuo il merge solo per la rimozione definitiva dei duplicati (oltre a quelli ottici
+# che si tolgono gia' per lane), che devono essere sullo stesso chr, per definizione
+# non faccio il realignment, per questioni di tempo vs vantaggio (Realigning per-sample means 
+# that you will have consistent alignments across all lanes within a sample)
+echo "Removing duplicates from sample-level BAM files" >> $outdir$ID"_Job_Time.log"
+for j in {1..24}; do
+	$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MarkDuplicates \
+       I=$outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
+       O=$outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+       M=$outdir$ID"_"$j"_aln_sort_metrics_sample.txt" \
+       CREATE_INDEX=TRUE \
+       AS=TRUE \
+       VALIDATION_STRINGENCY=LENIENT \
+       REMOVE_DUPLICATES=TRUE \
+       >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+done
+wait
+
+# HaplotypeCaller
+# chiamo le varianti in un GVCF
+echo "GATK HC variants calling" >> $outdir$ID"_Job_Time.log"
+for j in {1..24}; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 8 \
+        -T HaplotypeCaller \
+        -R $reference \
+        -I $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+        --emitRefConfidence GVCF \
+        --variant_index_type LINEAR \
+        --variant_index_parameter 128000 \
+        -stand_call_conf 50.0 \
+        -stand_emit_conf 10.0 \
+        -L $targetRegChipDir"/"$j".bed" \
+        --interval_padding 150 \
+	-o $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf" \
+        -A Coverage \
+        -A FisherStrand \
+        -A BaseQualityRankSumTest \
+        -A HaplotypeScore -A InbreedingCoeff \
+        -A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+        -A RMSMappingQuality -A ReadPosRankSumTest -A SpanningDeletions \
+        >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+done
+wait
+
+time9=$( date "+%s" )
+echo [elapsed time] $((($time9 - $time8)/60)) min >> $outdir$ID"_Job_Time.log"
+
+
+for j in {1..24}; do
+cat $outdir$ID"_"$j"_GATK_log" >> $outdir$ID"_GATK_log"
+rm -f $outdir$ID"_"$j"_GATK_log"
+done
+
+echo "merging, filtering and phasing HC vcf files" >> $outdir$ID"_Job_Time.log"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf"; done) -out $outdir$ID"_raw_snps-indels_HapCall.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+time10=$( date "+%s" )
+echo [elapsed time] $((($time10 - $time9)/60)) min >> $outdir$ID"_Job_Time.log"
+
+# check if family info is set
+if [ ${#member_name[@]} -eq 0 ]; then
+
+	echo "Family members are not defined!" >> $outdir$ID"_GATK_log" 2>&1
+	# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+	# into a single joint VCF file.
+	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	-nt 4 \
+	-R $reference \
+	-T GenotypeGVCFs \
+	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
+	-A Coverage \
+	-A FisherStrand \
+	-A BaseQualityRankSumTest \
+	-A HaplotypeScore -A InbreedingCoeff \
+	-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+	-A RMSMappingQuality -A ReadPosRankSumTest \
+	-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+	
+	# filtro delle varianti
+	# NB l'output lo chiamo comunque "genotype_filtered", anche se il
+        # genotipo non e' rifinito col joint
+        # prima separo SNPs e indels
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T SelectVariants \
+        -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+        -selectType SNP \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T SelectVariants \
+        -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+        -selectType INDEL \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        # poi filtro
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -R $reference \
+        -T VariantFiltration \
+        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+        --filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+        --filterName "HARD_TO_VALIDATE" \
+        --clusterWindowSize 10 \
+        --filterExpression "QUAL < 30.0 " \
+        --filterName "VeryLowQual" \
+        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+        --filterName "LowQual" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -R $reference \
+        -T VariantFiltration \
+        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+        --filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
+        --filterName "HARD_TO_VALIDATE" \
+        --clusterWindowSize 10 \
+        --filterExpression "QUAL < 30.0 " \
+        --filterName "VeryLowQual" \
+        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+        --filterName "LowQual" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	# rimetto insieme i 2 VCF
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" -out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+        # se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
+        $java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+        # rinomino come il file iniziale
+        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+
+	time11=$( date "+%s" )
+        echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
+
+else
+
+	for y in ${member_name[@]}; do
+                echo "Checking for" $y " vcf file..." >> $outdir$ID"_Job_Time.log"
+                while [ ! -f $outdir$y"_raw_snps-indels_HapCall.g.vcf" ]; do
+                        sleep 1m
+                done
+                oldFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                sleep 2m
+                newFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+
+                if [ $newFileSize -eq $oldFileSize ]; then
+                        echo "The "$y" vcf file exists and seems to be completed!" >> $outdir$ID"_Job_Time.log"
+                else
+                        echo "Waiting for "$y" vcf file completion..." >> $outdir$ID"_Job_Time.log"
+                        while [ $newFileSize -gt $oldFileSize ]; do
+                                oldFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                                sleep 2m
+                                newFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                        done
+			echo "The "$y" vcf file is completed!" >> $outdir$ID"_Job_Time.log"
+                fi
+        done
+      
+	# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+	# into a single joint VCF file.
+	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	-nt 4 \
+	-R $reference \
+	-T GenotypeGVCFs \
+	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
+	$(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf"; done) \
+	-A Coverage \
+	-A FisherStrand \
+	-A BaseQualityRankSumTest \
+	-A HaplotypeScore -A InbreedingCoeff \
+	-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+	-A RMSMappingQuality -A ReadPosRankSumTest \
+	-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	# filtro delle varianti
+        # prima separo SNPs e indels
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T SelectVariants \
+        -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+        -selectType SNP \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T SelectVariants \
+        -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+        -selectType INDEL \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        # poi filtro
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -R $reference \
+        -T VariantFiltration \
+        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+        --filterExpression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+        --filterName "HARD_TO_VALIDATE" \
+        --clusterWindowSize 10 \
+        --filterExpression "QUAL < 30.0 " \
+        --filterName "VeryLowQual" \
+        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+        --filterName "LowQual" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -R $reference \
+        -T VariantFiltration \
+        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+        --filterExpression "QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0" \
+        --filterName "HARD_TO_VALIDATE" \
+        --clusterWindowSize 10 \
+        --filterExpression "QUAL < 30.0 " \
+        --filterName "VeryLowQual" \
+        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+        --filterName "LowQual" \
+        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        # rimetto insieme i 2 VCF
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" -out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+        # se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina di login verso pico
+        $java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+        # rinomino come il file iniziale
+        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+
+	time11=$( date "+%s" )
+	echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
+
+	if [ $phasing == "y" ]
+	then
+		echo "Computing the most likely genotype combination and phasing trios and parent/child pairs" >> $outdir$ID"_Job_Time.log"
+		# al momento il PED file supporta un solo trio
+		# solo con VariantAnnotator si potrebbe inserire l'annotazione
+		# PossibleDeNovo al vcf. Valutare se utile
+		$java -Xmx8g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-R $reference \
+		-T PhaseByTransmission \
+		-ped $pedfile \
+		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf" \
+		--FatherAlleleFirst \
+		--MendelianViolationsFile $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased_mendelViols" \
+		--pedigreeValidationType SILENT \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+		
+		# controllo le parentele attraverso il numero di varianti ereditate da ciascuno dei due genitori
+		/pico/work/IscrC_FoRWArDS_1/NGS_tools/parental_control.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf" $ID >> $outdir$ID"_Job_Time.log" 2>> $outdir$ID"_GATK_log"
+	fi
+fi
+
+time12=$( date "+%s" )
+echo [elapsed time] $((($time12 - $time11)/60)) min >> $outdir$ID"_Job_Time.log"
+
+# lo metto prima della chiamata somatiche perche' cosi' possiamo intanto lanciare
+# la parte di annotazione per le germinali, visti i lunghi tempi di mutect2
+if [ $spidex == "y" ]
+then
+	#Creiamo il Job per l'annotazione con SPIDEX
+	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" $ID $outdir
+	qsub $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_job"
+fi
+
+if [ $somatic == "y" ]; then
+
+        # MuTect2 variant calling with single sample
+        for j in {1..24}; do
+                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -nct 8 \
+                -T MuTect2 \
+                -R $reference \
+                -I:tumor $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+                --normal_panel $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+		--dbsnp $dbSNP_file \
+                --cosmic $cosmic \
+		-L $targetRegChipDir"/"$j".bed" \
+		--interval_padding 150 \
+                -o $outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf" \
+                >> $outdir$ID"_"$j"_muTect2_log" 2>> $outdir$ID"_"$j"_muTect2_log" &
+        done
+        wait
+
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf"; done) -out $outdir$ID"_muTect2_raw_snps-indels.vcf" -assumeSorted >> $outdir$ID"_muTect2_log" 2>> $outdir$ID"_muTect2_log"
+
+        for j in {1..24}; do
+
+                cat $outdir$ID"_"$j"_muTect2_log" >> $outdir$ID"_muTect2_log"
+                rm -f $outdir$ID"_"$j"_muTect2_log"
+                rm -f $outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf"*
+        done
+
+        if [ $spidex == "y" ]
+                then
+                #Creiamo il Job per l'annotazione con SPIDEX per muTect2
+                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_muTect2_raw_snps-indels.vcf" $ID $outdir
+                qsub $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
+        fi
+
+fi
+
+time12bis=$( date "+%s" )
+echo [elapsed time] $((($time12bis - $time12)/60)) min >> $outdir$ID"_Job_Time.log"
+
+
+echo "Variant Calls Files are ready. Samtools is merging and indexing final bam files" >> $outdir$ID"_Job_Time.log"
+
+$bwakit"samtools" merge -@ 20 -f $outdir$ID"_aln_sort_nodup_recalc_final.bam" \
+$(for j in {1..24}; do echo $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam"; done)
+
+$bwakit"samtools" index $outdir$ID"_aln_sort_nodup_recalc_final.bam"
+mv $outdir$ID"_aln_sort_nodup_recalc_final.bam.bai" $outdir$ID"_aln_sort_nodup_recalc_final.bai"
+
+sleep 30
+
+time13=$( date "+%s" )
+#echo [elapsed time] $((($time13 - $time12)/60)) min >> $outdir$ID"_Job_Time.log"
+
+# calcolo il coverage, poi siccome il file complessivo e' molto grande,
+# mantengo solo la parte riassuntiva
+# bisogna farlo sul file bam prima del bam processing con GATK, perche' poi
+# GATK fa i riallineamenti solo sulle regioni -L che gli passiamo
+if [ $coverBedTools == "y" ]
+then
+	echo "BedTools: calculating depth of coverage" >> $outdir$ID"_Job_Time.log"
+        coverageBed -abam $outdir$ID"_aln_sort_nodup_recalc_final.bam" -b $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
+
+        grep ^all $outdir$ID"_global_coverage" > $outdir$ID"_global_coverage_hist"
+        rm -f $outdir$ID"_global_coverage"
+
+        echo "coverageBed -abam" $outdir$ID"_aln_sort_nodup_recalc_final.bam -b" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
+
+        time14=$( date "+%s" )
+        echo [elapsed time] $((($time14 - $time13)/60)) min >> $outdir$ID"_Job_Time.log"
+fi
+
+if [ $metrics == "y" ]
+then
+        echo "Calculating HsMetrics" >> $outdir$ID"_Job_Time.log"
+        $java -Xmx64g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" CollectHsMetrics \
+        BI=$targetRegChipDir"/allchrs.interval_list" \
+        TI=$targetRegChipDir"/allchrs.interval_list" \
+        I=$outdir$ID"_aln_sort_nodup_recalc_final.bam" \
+        O=$outdir$ID"_HsMetrics.txt" \
+        R=$reference \
+	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        time14bis=$( date "+%s" )
+        echo [elapsed time] $((($time14bis - $time14)/60)) min >> $outdir$ID"_Job_Time.log"
+fi
+
+time15=$( date "+%s" )
+
+echo "Calculating low coverage regions among Mendeliome + ACMG + DDG2P genes" >> $outdir$ID"_Job_Time.log"
+#Creo un bam contenente solo le regioni nel file bed del mendelioma
+$bwakit"samtools" view -bh $outdir$ID"_aln_sort_nodup_recalc_final.bam" -L $mendeliome > $outdir$ID"_aln_sort_nodup_recalc_final_mendeliome.bam"
+#Creo un bedGraph dal bam con il mendelioma
+/cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools genomecov -ibam $outdir$ID"_aln_sort_nodup_recalc_final_mendeliome.bam" -bga > $outdir$ID"_mendeliome_bga.bedGraph"
+#Estraggo dal bedGraph solo le posizioni sostanzialmente scoperte (con copertura 0 o 1)
+grep -w '0$\|1$' $outdir$ID"_mendeliome_bga.bedGraph" > $outdir$ID"_mendeliome_bga_0.bedGraph"
+#Creo un nuovo bedGraph trimmando le regioni che vanno oltre quelle definite
+#nel file bed del mendelioma (perché il samtools view iniziale estrae tutte
+#le reads che overlappano le regioni indicate col -L)
+echo -e "track type=bedGraph name="$ID" description='0 coverage' visibility=dense" > $outdir$ID"_mendeliome_bga_0_trimmed.bedGraph"
+/cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools intersect -b $mendeliome -a $outdir$ID"_mendeliome_bga_0.bedGraph" | awk -F '\t' '{print $1,$2,$3,0}' >> $outdir$ID"_mendeliome_bga_0_trimmed.bedGraph"
+#Creo un file di testo con tutti gli esoni che sono scoperti per almeno il 70%
+/cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools intersect -a $mendeliome -b $outdir$ID"_mendeliome_bga_0.bedGraph" -f 0.7 -wa > $outdir$ID"_mendeliome_bga_0_refid_70.txt"
+#aggiungo i genenames all'ultimo file
+python /pico/home/userexternal/abrusell/catch_genenames_from_refseqid_4_bedGraph.py $outdir$ID"_mendeliome_bga_0_refid_70.txt" $outdir$ID"_mendeliome_bga_0_refid_70_genename.txt"
+#Creo un bedGraph che contenga questa volta le regioni a bassa copertura (> 10 reads)
+/cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools intersect -a $outdir$ID"_mendeliome_bga.bedGraph" -b $mendeliome -sorted > $outdir$ID"_mendeliome_bga_trimmed.bedGraph"
+echo -e "track type=bedGraph name="$ID" description='low coverage' visibility=dense color=174,0,238" > $outdir$ID"_mendeliome_bga_trimmed_lowcov.bedGraph"
+awk '$4 < 10' $outdir$ID"_mendeliome_bga_trimmed.bedGraph" >> $outdir$ID"_mendeliome_bga_trimmed_lowcov.bedGraph"
+#comprimo i risultati e rimuovo i file intermedi
+gzip -f $outdir$ID"_mendeliome_bga_trimmed_lowcov.bedGraph" $outdir$ID"_mendeliome_bga_0_trimmed.bedGraph"
+rm -f $outdir$ID"_mendeliome_bga.bedGraph" $outdir$ID"_mendeliome_bga_0.bedGraph" $outdir$ID"_mendeliome_bga_trimmed.bedGraph"  $outdir$ID"_mendeliome_bga_0_refid_70.txt"
+#Calcolo il coverage su tutto il medelioma con coverageBed -hist
+/cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools coverage -b $outdir$ID"_aln_sort_nodup_recalc_final_mendeliome.bam" -a $mendeliome -hist > $outdir$ID"_mendeliome_global_coverage" 2>> $outdir$ID"_mendeliome_bedtools_log"
+grep ^all $outdir$ID"_mendeliome_global_coverage" > $outdir$ID"_mendeliome_global_coverage_hist"
+rm -f $outdir$ID"_mendeliome_global_coverage"
+
+time16=$( date "+%s" )
+echo [elapsed time] $((($time16 - $time15)/60)) min >> $outdir$ID"_Job_Time.log"
+
+# il phasing non c'e' sempre quindi il check lo faccio sul penultimo file vcf
+# ripulisco dai file intermedi
+if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" ]; then
+        for j in {1..24}; do
+                for z in ${lane_id[@]}; do
+#                        cat $outdir$ID"_"$z"_"$j"_aln_sort_nodup.list" >> $outdir$ID"_aln_sort_nodup.list"
+#                        rm -f $outdir$ID"_"$z"_"$j"_aln_sort_nodup.list"
+#                        cat $outdir$ID"_"$j"_aln_sort_metrics_sample.txt" >> $outdir$ID"_aln_sort_metrics_sample.txt"
+                        rm -f $outdir$ID"_"$j"_aln_sort_metrics_sample.txt"
+                        rm -f $outdir$ID"_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_"$z"_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_"$j"_raw_snps.vcf"*
+                        rm -f $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf"*
+
+                done
+        done
+else
+        echo "The script did not merge single chromosome files!" >> $outdir$ID"_Job_Time.log"
+        echo "check "$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" >> $outdir$ID"_Job_Time.log"
+fi
+
+
+echo [Total time] $((($time16 - $time1)/60)) min >> $outdir$ID"_Job_Time.log"
+date >> $outdir$ID"_Job_Time.log"
+
