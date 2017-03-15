@@ -221,9 +221,9 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/V.0.1/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v1/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/V.0.1/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v1/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 fi
 
 mv -f $ID"_Job" $outdir
@@ -256,9 +256,9 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/V.0.1/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v1/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/V.0.1/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v1/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 fi
 
 mv -f $ID"_annot_Job" $outdir
