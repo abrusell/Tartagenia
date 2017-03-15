@@ -559,12 +559,12 @@ time13=$( date "+%s" )
 if [ $coverBedTools == "y" ]
 then
 	echo "BedTools: calculating depth of coverage" >> $outdir$ID"_Job_Time.log"
-        coverageBed -abam $outdir$ID"_aln_sort_nodup_recalc_final.bam" -b $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
+        coverageBed -b $outdir$ID"_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
 
         grep ^all $outdir$ID"_global_coverage" > $outdir$ID"_global_coverage_hist"
         rm -f $outdir$ID"_global_coverage"
 
-        echo "coverageBed -abam" $outdir$ID"_aln_sort_nodup_recalc_final.bam -b" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
+        echo "coverageBed -b" $outdir$ID"_aln_sort_nodup_recalc_final.bam -a" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
 
         time14=$( date "+%s" )
         echo [elapsed time] $((($time14 - $time13)/60)) min >> $outdir$ID"_Job_Time.log"
