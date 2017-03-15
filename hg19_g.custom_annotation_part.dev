@@ -14,6 +14,7 @@ SNPEFF_HOME=/pico/home/userexternal/abrusell/snpEff/
 ACMG=/pico/home/userexternal/abrusell/ACMG_RefGene.txt
 DDG2P=/pico/home/userexternal/abrusell/DDG2P_RefGene.txt
 Mendeliome=/pico/home/userexternal/abrusell/Mendeliome_RefGene.txt
+Intervar=/pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/Intervar.py
 
 
 # qui ripulisco il file dalla possibilita' che il campo ALT del VCF contenga ',*', come indicazione di allele
