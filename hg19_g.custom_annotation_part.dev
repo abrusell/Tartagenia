@@ -24,9 +24,10 @@ else
 	flag=
 fi
 
-# Lancio Intervar sul vcforig
+# Lancio Intervar, lo devo lanciare nella dir del config.ini, altrimenti non funziona
 cp /pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/config.ini $outdir
-$Intervar -b hg19 -i $vcforig -o $outdir$ID &
+cd $outdir
+$Intervar -b hg19 -i $vcfinput -o $outdir$ID &
 
 # con SnpSift annotate riempo il campo ID con il dbSNP e la frequenza (CAF)
 java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info CAF $dbSNP_file $vcfinput > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
