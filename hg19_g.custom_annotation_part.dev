@@ -16,7 +16,6 @@ DDG2P=/pico/home/userexternal/abrusell/DDG2P_RefGene.txt
 Mendeliome=/pico/home/userexternal/abrusell/Mendeliome_RefGene.txt
 Intervar=/pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/Intervar.py
 
-
 if [ $phasing == "y" ]
 then
 	flag=_phased
@@ -24,11 +23,10 @@ else
 	flag=
 fi
 
-cd $outdir
-
-# Lancio Intervar sul vcforig
+# Lancio Intervar, lo devo lanciare nella dir del config.ini, altrimenti non funziona
 cp /pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/config.ini $outdir
-$Intervar -b hg19 -i $vcforig -o $outdir$ID >$outdir$ID"_custAnnot_log" 2>&1 &
+cd $outdir
+$Intervar -b hg19 -i $vcfinput -o $outdir$ID >$outdir$ID"_custAnnot_log" 2>&1 &
 
 # con SnpSift annotate riempo il campo ID con il dbSNP e la frequenza (CAF)
 java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info CAF $dbSNP_file $vcfinput > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
