@@ -1,5 +1,5 @@
 bwakit=/pico/home/userexternal/abrusell/bwa.kit-0.7.12/
-GATK_HOME=/pico/home/userexternal/aciolfi0/GenomeAnalysisTK-3.7/GenomeAnalysisTK.jar
+GATK_HOME=/pico/home/userexternal/aciolfi0/GenomeAnalysisTK-3.7/
 PICARD_HOME=/cineca/prod/applications/picard/2.3.0/binary/bin/
 java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
 
