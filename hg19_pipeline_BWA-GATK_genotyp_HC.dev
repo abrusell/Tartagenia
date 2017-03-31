@@ -1,5 +1,5 @@
 bwakit=/pico/home/userexternal/abrusell/bwa.kit-0.7.12/
-GATK_HOME=/cineca/prod/applications/gatk/3.6/jre--1.7.0_72/
+GATK_HOME=/pico/home/userexternal/aciolfi0/GenomeAnalysisTK-3.7/
 PICARD_HOME=/cineca/prod/applications/picard/2.3.0/binary/bin/
 java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
 
@@ -250,7 +250,6 @@ for j in {1..24}; do
         --variant_index_type LINEAR \
         --variant_index_parameter 128000 \
         -stand_call_conf 50.0 \
-        -stand_emit_conf 10.0 \
         -L $targetRegChipDir"/"$j".bed" \
         --interval_padding 150 \
 	-o $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf" \
