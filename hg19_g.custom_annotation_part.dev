@@ -105,6 +105,7 @@ sed -i 's/ /_/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.
 sed 's/^chr//g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" | gzip > $outdir$ID"_tmp2CADD.vcf.gz"
 
 # carico i moduli necessari per il CADD scoring
+module load python/2.7.8
 module load autoload bx-python
 module load autoload pysam
 # ottengo i CADD scores
