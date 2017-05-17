@@ -78,7 +78,6 @@ time5=$( date "+%s" )
 #for i in $(seq 1 $fq_couple); do
 #        for j in {1..24}; do
 #                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-#                -nt 2 \
 #                -T RealignerTargetCreator \
 #                -L $targetRegChipDir"/"$j".bed" \
 #                --interval_padding 150 \
@@ -226,14 +225,14 @@ echo [elapsed time] $((($time8 - $time7bis)/60)) min >> $outdir$ID"_Job_Time.log
 echo "Removing duplicates from sample-level BAM files" >> $outdir$ID"_Job_Time.log"
 for j in {1..24}; do
 	$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MarkDuplicates \
-       I=$outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
-       O=$outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
-       M=$outdir$ID"_"$j"_aln_sort_metrics_sample.txt" \
-       CREATE_INDEX=TRUE \
-       AS=TRUE \
-       VALIDATION_STRINGENCY=LENIENT \
-       REMOVE_DUPLICATES=TRUE \
-       >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+	I=$outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
+	O=$outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+	M=$outdir$ID"_"$j"_aln_sort_metrics_sample.txt" \
+	CREATE_INDEX=TRUE \
+	AS=TRUE \
+	VALIDATION_STRINGENCY=LENIENT \
+	REMOVE_DUPLICATES=TRUE \
+	>> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
 done
 wait
 
@@ -286,7 +285,6 @@ if [ ${#member_name[@]} -eq 0 ]; then
 	# into a single joint VCF file.
 	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
 	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-nt 4 \
 	-R $reference \
 	-T GenotypeGVCFs \
 	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
@@ -389,7 +387,6 @@ else
 	# into a single joint VCF file.
 	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
 	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-nt 4 \
 	-R $reference \
 	-T GenotypeGVCFs \
 	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
