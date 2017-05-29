@@ -554,6 +554,7 @@ time13=$( date "+%s" )
 # GATK fa i riallineamenti solo sulle regioni -L che gli passiamo
 if [ $coverBedTools == "y" ]
 then
+	module load bedtools/2.24
 	echo "BedTools: calculating depth of coverage" >> $outdir$ID"_Job_Time.log"
         coverageBed -b $outdir$ID"_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
 
