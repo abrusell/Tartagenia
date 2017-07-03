@@ -14,7 +14,8 @@ onethous_genomes=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_omni2.5.hg19.vcf.gz
 knownInd_1=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.indels.hg19.vcf.gz
 knownInd_2=/pico/work/IscrC_FoRWArDS_1/db/snp/Mills_and_1000G_gold_standard.indels.hg19.vcf.gz
 mendeliome=/pico/work/IscrC_FoRWArDS_1/db/refGene/2016/Mendeliome+ACMG+DDG2P_refGene_exons50_sorted.bed
-
+bedtools=/pico/home/userexternal/spizzi00/bedtools2-2.26.0/bin/
+genomefile=/gpfs/work/IscrC_FoRWArDS_1/db/reference/bedtools.genomefile.hg19
 
 
 time1=$( date "+%s" )
@@ -554,14 +555,13 @@ time13=$( date "+%s" )
 # GATK fa i riallineamenti solo sulle regioni -L che gli passiamo
 if [ $coverBedTools == "y" ]
 then
-	module load bedtools/2.24
 	echo "BedTools: calculating depth of coverage" >> $outdir$ID"_Job_Time.log"
-        coverageBed -b $outdir$ID"_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
+        $bedtools"coverageBed" -sorted -g $genomefile -b $outdir$ID"_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
 
         grep ^all $outdir$ID"_global_coverage" > $outdir$ID"_global_coverage_hist"
         rm -f $outdir$ID"_global_coverage"
 
-        echo "coverageBed -b" $outdir$ID"_aln_sort_nodup_recalc_final.bam -a" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
+        echo "coverageBed -sorted -g "$genomefile" -b" $outdir$ID"_aln_sort_nodup_recalc_final.bam -a" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
 
         time14=$( date "+%s" )
         echo [elapsed time] $((($time14 - $time13)/60)) min >> $outdir$ID"_Job_Time.log"
