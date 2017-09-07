@@ -11,12 +11,18 @@ dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_147_hg19.vcf.gz
 #mir_target_regions=/pico/work/IscrC_FoRWArDS_1/db/hg38/target_regions/mir/
 cosmic=/pico/work/IscrC_FoRWArDS_1/db/cosmic/CosmicCodingNonCodingVariantsV76_fixed.vcf.gz
 onethous_genomes=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_omni2.5.hg19.vcf.gz
+knownSNPs=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.snps.high_confidence.hg19.sites.vcf.gz
+hapmap=/pico/work/IscrC_FoRWArDS_1/db/snp/hapmap_3.3.hg19.vcf.gz
 knownInd_1=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.indels.hg19.vcf.gz
 knownInd_2=/pico/work/IscrC_FoRWArDS_1/db/snp/Mills_and_1000G_gold_standard.indels.hg19.vcf.gz
+axiomPoly=/pico/work/IscrC_FoRWArDS_1/db/snp/Axiom_Exome_Plus.genotypes.all_populations.poly.vcf.gz
 mendeliome=/pico/work/IscrC_FoRWArDS_1/db/refGene/2016/Mendeliome+ACMG+DDG2P_refGene_exons50_sorted.bed
 bedtools=/pico/home/userexternal/spizzi00/bedtools2-2.26.0/bin/
 genomefile=/gpfs/work/IscrC_FoRWArDS_1/db/reference/bedtools.genomefile.hg19
 
+# Beware that $variable in such sed expression would be taken as a regular expression and so any special characters 
+# that the variable contains, such as / or . would have to be escaped.
+escaped_id=$(printf '%s\n' "$ID" | sed 's:[][\/.^$*&]:\\&:g')
 
 time1=$( date "+%s" )
 date >> $outdir$ID"_Job_Time.log" 
@@ -64,68 +70,7 @@ then
 fi
 
 time4=$( date "+%s" )
-time5=$( date "+%s" )
-
-######################################################################################
-## N.B. In accordo con le Best Practices 2016 rimuovo il riallin intorno agli indels #
-######################################################################################
-
-#riallineamento locale intorno agli indels con GATK:PER-LANE!
-# prima identifico possibili target regions per il riallineamento
-# all'iniizo avevo inserito anche l'opzione --fix_misencoded_quality_scores
-# poi l'ho eliminata perche' se il GATK trova il bam tutto codificato bene con
-# il sanger score mi da' errore e si blocca!
-#echo "GATK local realignment: creating lists" >> $outdir$ID"_Job_Time.log"
-#for i in $(seq 1 $fq_couple); do
-#        for j in {1..24}; do
-#                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-#                -T RealignerTargetCreator \
-#                -L $targetRegChipDir"/"$j".bed" \
-#                --interval_padding 150 \
-#		-R $reference \
-#                -I $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" \
-#                -o $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup.list" \
-#                -known $knownInd_2 \
-#		--filter_mismatching_base_and_quals \
-#                >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
-#        done
-#        wait
-#done
-
-## poi riallineo il bam file per una call migliore: PER-LANE!
-## --------------- don't bother with BAQ here, I will calculate it in table recalibrator
-## con l'opzione -L riduco un po' il tempo di calcolo
-## all'iniizo avevo inserito anche l'opzione --fix_misencoded_quality_scores
-## poi l'ho eliminato perche' se il GATK trova il bam tutto codificato bene
-## con il sanger score mi da' errore e si blocca!
-## aggiunto --filter_bases_not_stored per problema su dei fastq di bassa qualita'
-time6=$( date "+%s" )
-#echo [elapsed time] $((($time6 - $time5)/60)) min >> $outdir$ID"_Job_Time.log"
-
-#echo "GATK local realignment: applying lists" >> $outdir$ID"_Job_Time.log"
-#for i in $(seq 1 $fq_couple); do
-#        for j in {1..24}; do
-#                $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-#                -T IndelRealigner \
-#		-L $targetRegChipDir"/"$j".bed" \
-#                --interval_padding 150 \
-#		-R $reference \
-#                --targetIntervals $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup.list" \
-#                -known $knownInd_2 \
-#                -I $outdir$ID"_"${lane_id[$i]}"_aln_sort_nodup.bam" \
-#                -o $outdir$ID"_"${lane_id[$i]}"_"$j"_aln_sort_nodup_.bam" \
-#                --filter_bases_not_stored \
-#                >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
-#        done
-#        wait
-#done
-
-
 time7=$( date "+%s" )
-#echo [elapsed time] $((($time7 - $time6)/60)) min >> $outdir$ID"_Job_Time.log"
-
-################################################################################
-
 
 # base quality score recalibration: per-sample!
 # count covariates. This step creates a .grp file which is needed for the next
@@ -252,7 +197,7 @@ for j in {1..24}; do
         -stand_call_conf 50.0 \
         -L $targetRegChipDir"/"$j".bed" \
         --interval_padding 150 \
-	-o $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf" \
+	-o $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf.gz" \
         -A Coverage \
         -A FisherStrand \
         -A BaseQualityRankSumTest \
@@ -273,7 +218,7 @@ rm -f $outdir$ID"_"$j"_GATK_log"
 done
 
 echo "merging, filtering and phasing HC vcf files" >> $outdir$ID"_Job_Time.log"
-$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf"; done) -out $outdir$ID"_raw_snps-indels_HapCall.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf.gz"; done) -out $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
 time10=$( date "+%s" )
 echo [elapsed time] $((($time10 - $time9)/60)) min >> $outdir$ID"_Job_Time.log"
@@ -283,79 +228,223 @@ if [ ${#member_name[@]} -eq 0 ]; then
 
 	echo "Family members are not defined!" >> $outdir$ID"_GATK_log" 2>&1
 	# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+	# and from previously analyzed samples (to VQSR)
 	# into a single joint VCF file.
-	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-R $reference \
-	-T GenotypeGVCFs \
-	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
-	-A Coverage \
-	-A FisherStrand \
-	-A BaseQualityRankSumTest \
-	-A HaplotypeScore -A InbreedingCoeff \
-	-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
-	-A RMSMappingQuality -A ReadPosRankSumTest \
-	-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+	# Ho provato la parallelizzazione su singolo chr, con risultati negativi
+	# evidentemente necessita di molta RAM per singolo processo e durante la parallelizzazione
+	# diventa il fattore limitante
+
+	if [ $VQSR == "y" ]; then
+		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-R $reference \
+		-nt 6 \
+		-T GenotypeGVCFs \
+		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+		--variant $outdir"gvcf.list" \
+		-L $targetRegChipDir"/allchrs.bed" \
+		-A Coverage \
+		-A FisherStrand \
+		-A BaseQualityRankSumTest \
+		-A HaplotypeScore -A InbreedingCoeff \
+		-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+		-A RMSMappingQuality -A ReadPosRankSumTest \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		#filtro delle varianti con VQSR
+		#Strip to sites only
+		$java -Xmx100g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MakeSitesOnlyVcf \
+		INPUT=$outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+		OUTPUT=$outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		#Perform SNP VQSR on sites only file
+		# l'opzione allPoly considera tutti i siti come polimorfici
+		# rendendo il calcolo molto piu' veloce
+		# (usata da quelli di ExAC)
+		# non uso SOR, come quelli di ExAC, perche' non tutti i nostri WES hanno l'annotazione
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-T VariantRecalibrator \
+		-R $reference \
+		-nt 6 \
+		-input $outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+		-recalFile $outdir$ID"_snps.VQSR.recal" \
+		-tranchesFile $outdir$ID"_snps.VQSR.tranches" \
+		-allPoly \
+		-an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an InbreedingCoeff \
+		-resource:hapmap,known=false,training=true,truth=true,prior=15 $hapmap \
+		-resource:omni1000g,known=false,training=true,truth=true,prior=12 $onethous_genomes \
+		-resource:highconf1000G,known=false,training=true,truth=false,prior=10 $knownSNPs \
+		-resource:dbsnp,known=true,training=false,truth=false,prior=7 $dbSNP_file \
+		--maxGaussians 6 -mode SNP \
+		-rscriptFile $outdir$ID"_snps.VQSR.recalibration_plots.rscript" \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+		
+		#Perform INDEL VQSR on sites only file
+		# axiomPoly e' usato in ExAC
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-T VariantRecalibrator \
+		-R $reference \
+		-nt 6 \
+		-input $outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+                -recalFile $outdir$ID"_indels.VQSR.recal" \
+                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
+		-allPoly \
+		-an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
+		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
+		-resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
+		-resource:dbsnp137,known=true,training=false,truth=false,prior=2 $dbSNP_file \
+		--maxGaussians 4 -mode INDEL \
+		-rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		#Apply SNP VQSR on genotypes file (SNP sensitivity 99.5)
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-T ApplyRecalibration \
+		-R $reference \
+		-nt 6 \
+		-input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_VQSRfiltered.g.vcf.gz" \
+		-L $targetRegChipDir"/allchrs.bed" \
+		-recalFile $outdir$ID"_snps.VQSR.recal" \
+                -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
+		-ts_filter_level 99.5 -mode SNP \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		#Apply Indel VQSR on genotypes file (INDEL sensitivity 99.0)
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T ApplyRecalibration \
+                -R $reference \
+		-nt 6 \
+		-input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+		-L $targetRegChipDir"/allchrs.bed" \
+		-recalFile $outdir$ID"_indels.VQSR.recal" \
+                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
+		-ts_filter_level 99.0 -mode INDEL \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		# select only family samples
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-T SelectVariants \
+		-R $reference \
+		-nt 6 \
+		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_VQSRfiltered.g.vcf.gz" \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+		-sn $ID \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T SelectVariants \
+                -R $reference \
+                -nt 6 \
+                -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+                -sn $ID \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	else
+		# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -R $reference \
+                -nt 6 \
+                -T GenotypeGVCFs \
+                --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+                -A Coverage \
+                -A FisherStrand \
+                -A BaseQualityRankSumTest \
+                -A HaplotypeScore -A InbreedingCoeff \
+                -A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+                -A RMSMappingQuality -A ReadPosRankSumTest \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+
+		# filtro delle varianti
+		# NB l'output lo chiamo comunque "genotype_filtered", anche se il
+	        # genotipo non e' rifinito col joint
+	        
+		# prima separo SNPs e indels
+        	$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        	-T SelectVariants \
+	        -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+	        -selectType SNP \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+        	$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T SelectVariants \
+	        -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+	        -selectType INDEL \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        # poi filtro
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -R $reference \
+	        -T VariantFiltration \
+	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+	        --filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+	        --filterName "HARD_TO_VALIDATE" \
+	        --clusterWindowSize 10 \
+	        --filterExpression "QUAL < 30.0 " \
+	        --filterName "VeryLowQual" \
+	        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+	        --filterName "LowQual" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -R $reference \
+	        -T VariantFiltration \
+	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+	        --filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
+	        --filterName "HARD_TO_VALIDATE" \
+	        --clusterWindowSize 10 \
+	        --filterExpression "QUAL < 30.0 " \
+	        --filterName "VeryLowQual" \
+	        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+	        --filterName "LowQual" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	fi
+
+	# unifico i due vcf
+	# non posso usare catVariants perche' gli header
+	# degli SNP e degli INDEL sono diversi
+	$java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	-T CombineVariants -R $reference \
+	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+	-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	--genotypemergeoption UNIQUIFY \
 	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-	
-	# filtro delle varianti
-	# NB l'output lo chiamo comunque "genotype_filtered", anche se il
-        # genotipo non e' rifinito col joint
-        # prima separo SNPs e indels
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T SelectVariants \
-        -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
-        -selectType SNP \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T SelectVariants \
-        -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
-        -selectType INDEL \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+	# estraggo solo il primo sample 
+	# delle due colonne che ha scritto CombineVariants
+	# (tanto i campioni sono uguali)
+	$java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	-T SelectVariants -R $reference \
+	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
+	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-        # poi filtro
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -R $reference \
-        -T VariantFiltration \
-        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
-        --filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
-        --filterName "HARD_TO_VALIDATE" \
-        --clusterWindowSize 10 \
-        --filterExpression "QUAL < 30.0 " \
-        --filterName "VeryLowQual" \
-        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
-        --filterName "LowQual" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -R $reference \
-        -T VariantFiltration \
-        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
-        --filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
-        --filterName "HARD_TO_VALIDATE" \
-        --clusterWindowSize 10 \
-        --filterExpression "QUAL < 30.0 " \
-        --filterName "VeryLowQual" \
-        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
-        --filterName "LowQual" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-	# rimetto insieme i 2 VCF
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" -out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-        # devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
-        # se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
-        $java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-        # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
-        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
-        # rinomino come il file iniziale
-        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+	# modifico il nome della colonna sample per ripristinare quello originario
+	# rimuovo i file intermedi
+	gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
+	# Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
+        # that the variable contains, such as / or . would have to be escaped.
+        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"* 
+	rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
 
 	time11=$( date "+%s" )
         echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
@@ -364,99 +453,248 @@ else
 
 	for y in ${member_name[@]}; do
                 echo "Checking for" $y " vcf file..." >> $outdir$ID"_Job_Time.log"
-                while [ ! -f $outdir$y"_raw_snps-indels_HapCall.g.vcf" ]; do
+                while [ ! -f $outdir$y"_raw_snps-indels_HapCall.g.vcf.gz" ]; do
                         sleep 1m
                 done
-                oldFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                oldFileSize=$(zcat $outdir$y"_raw_snps-indels_HapCall.g.vcf.gz" | wc -c)
                 sleep 2m
-                newFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                newFileSize=$(zcat $outdir$y"_raw_snps-indels_HapCall.g.vcf.gz" | wc -c)
 
                 if [ $newFileSize -eq $oldFileSize ]; then
                         echo "The "$y" vcf file exists and seems to be completed!" >> $outdir$ID"_Job_Time.log"
                 else
                         echo "Waiting for "$y" vcf file completion..." >> $outdir$ID"_Job_Time.log"
                         while [ $newFileSize -gt $oldFileSize ]; do
-                                oldFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                                oldFileSize=$(zcat $outdir$y"_raw_snps-indels_HapCall.g.vcf.gz" | wc -c)
                                 sleep 2m
-                                newFileSize=$(cat $outdir$y"_raw_snps-indels_HapCall.g.vcf" | wc -c)
+                                newFileSize=$(zcat $outdir$y"_raw_snps-indels_HapCall.g.vcf.gz" | wc -c)
                         done
 			echo "The "$y" vcf file is completed!" >> $outdir$ID"_Job_Time.log"
                 fi
         done
       
-	# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
-	# into a single joint VCF file.
-	echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-	$java -Xmx25g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-R $reference \
-	-T GenotypeGVCFs \
-	--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf" \
-	$(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf"; done) \
-	-A Coverage \
-	-A FisherStrand \
-	-A BaseQualityRankSumTest \
-	-A HaplotypeScore -A InbreedingCoeff \
-	-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
-	-A RMSMappingQuality -A ReadPosRankSumTest \
-	-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
-	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+        # and from previously analyzed samples (to VQSR)
+        # into a single joint VCF file.
 
-	# filtro delle varianti
-        # prima separo SNPs e indels
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T SelectVariants \
-        -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
-        -selectType SNP \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
+        if [ $VQSR == "y" ]; then
+                echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -R $reference \
+                -nt 6 \
+                -T GenotypeGVCFs \
+                --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+                $(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf.gz"; done) \
+		--variant $outdir"gvcf.list" \
+                -L $targetRegChipDir"/allchrs.bed" \
+                -A Coverage \
+                -A FisherStrand \
+                -A BaseQualityRankSumTest \
+                -A HaplotypeScore -A InbreedingCoeff \
+                -A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+                -A RMSMappingQuality -A ReadPosRankSumTest \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+                #filtro delle varianti con VQSR
+                #Strip to sites only
+                $java -Xmx100g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MakeSitesOnlyVcf \
+                INPUT=$outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                OUTPUT=$outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+                #Perform SNP VQSR on sites only file
+                # l'opzione allPoly considera tutti i siti come polimorfici
+                # rendendo il calcolo molto piu' veloce
+                # (usata da quelli di ExAC)
+                # non uso SOR, come quelli di ExAC, perche' non tutti i nostri WES hanno l'annotazione
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T VariantRecalibrator \
+                -R $reference \
+                -nt 6 \
+                -input $outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+                -recalFile $outdir$ID"_snps.VQSR.recal" \
+                -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
+                -allPoly \
+                -an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an InbreedingCoeff \
+                -resource:hapmap,known=false,training=true,truth=true,prior=15 $hapmap \
+                -resource:omni1000g,known=false,training=true,truth=true,prior=12 $onethous_genomes \
+                -resource:highconf1000G,known=false,training=true,truth=false,prior=10 $knownSNPs \
+                -resource:dbsnp,known=true,training=false,truth=false,prior=7 $dbSNP_file \
+                --maxGaussians 6 -mode SNP \
+                -rscriptFile $outdir$ID"_snps.VQSR.recalibration_plots.rscript" \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		#Perform INDEL VQSR on sites only file
+                # axiomPoly e' usato in ExAC
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T VariantRecalibrator \
+                -R $reference \
+                -nt 6 \
+                -input $outdir$ID"_raw_snps-indels_HapCall_genotype_sites.g.vcf.gz" \
+                -recalFile $outdir$ID"_indels.VQSR.recal" \
+                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
+                -allPoly \
+                -an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
+		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
+                -resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
+                -resource:dbsnp137,known=true,training=false,truth=false,prior=2 $dbSNP_file \
+                --maxGaussians 4 -mode INDEL \
+                -rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+                #Apply SNP VQSR on genotypes file (SNP sensitivity 99.5)
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T ApplyRecalibration \
+                -R $reference \
+                -nt 6 \
+                -input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_VQSRfiltered.g.vcf.gz" \
+                -L $targetRegChipDir"/allchrs.bed" \
+                -recalFile $outdir$ID"_snps.VQSR.recal" \
+                -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
+                -ts_filter_level 99.5 -mode SNP \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+                #Apply Indel VQSR on genotypes file (INDEL sensitivity 99.0)
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T ApplyRecalibration \
+                -R $reference \
+                -nt 6 \
+                -input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+                -L $targetRegChipDir"/allchrs.bed" \
+                -recalFile $outdir$ID"_indels.VQSR.recal" \
+                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
+                -ts_filter_level 99.0 -mode INDEL \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+	
+                # select only family samples
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T SelectVariants \
+                -R $reference \
+                -nt 6 \
+                -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_VQSRfiltered.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+                -sn $ID \
+                $(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                -T SelectVariants \
+                -R $reference \
+                -nt 6 \
+                -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+                -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+                -sn $ID \
+		$(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	else
+
+		# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+		# into a single joint VCF file.
+		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
+		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-R $reference \
+		-T GenotypeGVCFs \
+		-nt 6 \
+		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+		$(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf.gz"; done) \
+		-A Coverage \
+		-A FisherStrand \
+		-A BaseQualityRankSumTest \
+		-A HaplotypeScore -A InbreedingCoeff \
+		-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+		-A RMSMappingQuality -A ReadPosRankSumTest \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		# filtro delle varianti
+	        # prima separo SNPs e indels
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T SelectVariants \
+	        -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+	        -selectType SNP \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T SelectVariants \
+	        -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+	        -selectType INDEL \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+	
+	        # poi filtro
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -R $reference \
+	        -T VariantFiltration \
+	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+	        --filterExpression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+	        --filterName "HARD_TO_VALIDATE" \
+	        --clusterWindowSize 10 \
+	        --filterExpression "QUAL < 30.0 " \
+	        --filterName "VeryLowQual" \
+	        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+	        --filterName "LowQual" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -R $reference \
+	        -T VariantFiltration \
+	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+	        --filterExpression "QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0" \
+	        --filterName "HARD_TO_VALIDATE" \
+	        --clusterWindowSize 10 \
+	        --filterExpression "QUAL < 30.0 " \
+	        --filterName "VeryLowQual" \
+	        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+	        --filterName "LowQual" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	fi
+
+	# unifico i due vcf
+        # non posso usare catVariants perche' gli header
+        # degli SNP e degli INDEL sono diversi
+        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T CombineVariants -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+        --genotypemergeoption UNIQUIFY \
         >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T SelectVariants \
-        -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
-        -selectType INDEL \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
+        # estraggo solo il primo sample 
+        # delle due colonne che ha scritto CombineVariants
+        # (tanto i campioni sono uguali)
+        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -T SelectVariants -R $reference \
+        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
+	$(for sn in ${member_name[@]}; do echo "--sample_name "$sn".variant"; done) \
         >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-        # poi filtro
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -R $reference \
-        -T VariantFiltration \
-        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
-        --filterExpression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
-        --filterName "HARD_TO_VALIDATE" \
-        --clusterWindowSize 10 \
-        --filterExpression "QUAL < 30.0 " \
-        --filterName "VeryLowQual" \
-        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
-        --filterName "LowQual" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        # modifico il nome della colonna sample per ripristinare quello originario
+        gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
+        # Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
+        # that the variable contains, such as / or . would have to be escaped.
+        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+        for sub in ${member_name[@]}; do
+                escaped_sub=$(printf '%s\n' "$sub" | sed 's:[][\/.^$*&]:\\&:g')
+                sed -i "s/$escaped_sub\.variant/$escaped_sub/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+        done
+	bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+        tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"*
+        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
 
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -R $reference \
-        -T VariantFiltration \
-        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
-        --filterExpression "QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0" \
-        --filterName "HARD_TO_VALIDATE" \
-        --clusterWindowSize 10 \
-        --filterExpression "QUAL < 30.0 " \
-        --filterName "VeryLowQual" \
-        --filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
-        --filterName "LowQual" \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-        # rimetto insieme i 2 VCF
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" -out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-        # devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
-        # se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina di login verso pico
-        $java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-        # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
-        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
-        # rinomino come il file iniziale
-        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
 
 	time11=$( date "+%s" )
 	echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
@@ -471,15 +709,15 @@ else
 		-R $reference \
 		-T PhaseByTransmission \
 		-ped $pedfile \
-		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
-		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf" \
+		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf.gz" \
 		--FatherAlleleFirst \
 		--MendelianViolationsFile $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased_mendelViols" \
 		--pedigreeValidationType SILENT \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 		
 		# controllo le parentele attraverso il numero di varianti ereditate da ciascuno dei due genitori
-		/pico/work/IscrC_FoRWArDS_1/NGS_tools/parental_control.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf" $ID >> $outdir$ID"_Job_Time.log" 2>> $outdir$ID"_GATK_log"
+		/pico/work/IscrC_FoRWArDS_1/NGS_tools/parental_control.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf.gz" $ID >> $outdir$ID"_Job_Time.log" 2>> $outdir$ID"_GATK_log"
 	fi
 fi
 
@@ -491,7 +729,7 @@ echo [elapsed time] $((($time12 - $time11)/60)) min >> $outdir$ID"_Job_Time.log"
 if [ $spidex == "y" ]
 then
 	#Creiamo il Job per l'annotazione con SPIDEX
-	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" $ID $outdir
+	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" $ID $outdir
 	qsub $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_job"
 fi
 
@@ -504,17 +742,17 @@ if [ $somatic == "y" ]; then
                 -T MuTect2 \
                 -R $reference \
                 -I:tumor $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
-                --normal_panel $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf" \
+                --normal_panel $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
 		--dbsnp $dbSNP_file \
                 --cosmic $cosmic \
 		-L $targetRegChipDir"/"$j".bed" \
 		--interval_padding 150 \
-                -o $outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf" \
+                -o $outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf.gz" \
                 >> $outdir$ID"_"$j"_muTect2_log" 2>> $outdir$ID"_"$j"_muTect2_log" &
         done
         wait
 
-        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf"; done) -out $outdir$ID"_muTect2_raw_snps-indels.vcf" -assumeSorted >> $outdir$ID"_muTect2_log" 2>> $outdir$ID"_muTect2_log"
+        $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf.gz"; done) -out $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" -assumeSorted >> $outdir$ID"_muTect2_log" 2>> $outdir$ID"_muTect2_log"
 
         for j in {1..24}; do
 
@@ -526,7 +764,7 @@ if [ $somatic == "y" ]; then
         if [ $spidex == "y" ]
                 then
                 #Creiamo il Job per l'annotazione con SPIDEX per muTect2
-                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_muTect2_raw_snps-indels.vcf" $ID $outdir
+                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" $ID $outdir
                 qsub $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
         fi
 
@@ -617,7 +855,7 @@ echo [elapsed time] $((($time16 - $time15)/60)) min >> $outdir$ID"_Job_Time.log"
 
 # il phasing non c'e' sempre quindi il check lo faccio sul penultimo file vcf
 # ripulisco dai file intermedi
-if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" ]; then
+if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" ]; then
         for j in {1..24}; do
                 for z in ${lane_id[@]}; do
 #                        cat $outdir$ID"_"$z"_"$j"_aln_sort_nodup.list" >> $outdir$ID"_aln_sort_nodup.list"
@@ -628,12 +866,12 @@ if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" ]; then
                         rm -f $outdir$ID"_"$z"_"$j"_aln_"*".ba"*
                         rm -f $outdir$ID"_"$j"_raw_snps.vcf"*
                         rm -f $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf"*
-
+			rm -fr $tmpdir
                 done
         done
 else
         echo "The script did not merge single chromosome files!" >> $outdir$ID"_Job_Time.log"
-        echo "check "$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" >> $outdir$ID"_Job_Time.log"
+        echo "check "$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" >> $outdir$ID"_Job_Time.log"
 fi
 
 
