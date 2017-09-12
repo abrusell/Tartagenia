@@ -50,7 +50,7 @@ fi
 echo -e "#PBS -W group_list=SIGU_Tarta17" >> $ID"_Job"
 echo -e "#PBS -A SIGU_Tarta17" >> $ID"_Job"
 echo -e "#PBS -q "$QUEUE >> $ID"_Job"
-echo -e "#PBS -l walltime=24:00:00\n" >> $ID"_Job"
+echo -e "#PBS -l walltime=100:00:00\n" >> $ID"_Job"
 
 echo -e "umask 0002\n" >> $ID"_Job" 
 
@@ -135,7 +135,7 @@ else
 	fi
 fi	
 
-echo "Do you need a mutisample vcf file (e.g. if you have a proband with other family members)? [Type y/n]"
+echo "Do you need a multisample vcf file (e.g. if you have a proband with other family members)? [Type y/n]"
 read family
 
 if [ $family == "y" ]
@@ -184,6 +184,41 @@ read coverBedTools
 echo "Do you want to calculate HsMetrics? [Type y/n]"
 read metrics
 
+echo "Do you want to perform VQSR? [Type y/n]"
+read vqsr
+if [ $vqsr == "y" ]
+        then
+                echo "VCFs filelist name: "
+		read vcfsfilelist
+		if [ ! -f $vcfsfilelist ]
+               	then
+                       	echo $vcfsfilelist " does not exist!"
+                       	echo "VCFS filelist file name: "
+                       	read vcfsfilelist
+                       	if [ ! -f $vcfsfilelist ]
+                   	then
+                               	echo $vcfsfilelist " does not exist!"
+                               	exit 1
+                        fi
+                fi
+
+		# extract 50 random (excluding the oldest ones) g.vcf files from vcfFilelist
+		# e' il numero massimo che ci possiamo permettere con le nostre risorse attuali
+		# check che esistano tutti i gVCF nella lista
+	        grep -v indels_HC_UG_ $vcfsfilelist | grep -v ISS_VCF | grep -v _prob_ | shuf | head -n 50 > $outdir"gvcf.tmp.list"
+		sed -i 's/_HapCall_genotype_filtered/_HapCall/' $outdir"gvcf.tmp.list"
+        	grep "_HapCall.g.vcf.gz$" $outdir"gvcf.tmp.list" > $outdir"gvcf.list"
+		rm $outdir"gvcf.tmp.list"
+		while read -r gvcf; do
+			if [[ ! -e $gvcf ]]; then
+        			echo $gvcf "does not exist"
+        			exit 1
+			fi
+		done < "${outdir}gvcf.list"
+		
+
+fi
+
 if [ $fqc == "y" ]; then
 	if [ $fq_couple -gt 1 ]; then
 	        echo -e "\n  concatenating fastq files..."
@@ -211,7 +246,7 @@ echo -e "qscore="$qscore >> $ID"_Job"
 echo -e "coverBedTools="$coverBedTools >> $ID"_Job"
 echo -e "metrics="$metrics >> $ID"_Job"
 echo -e "targetRegChipDir="$targetRegChipDir >> $ID"_Job"
-
+echo -e "VQSR="$vqsr >> $ID"_Job"
 
 if [ ! -z $pedigree ]; then
 	if [ $pedigree == "y" ]; then
@@ -221,9 +256,9 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v2/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v2/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 fi
 
 mv -f $ID"_Job" $outdir
@@ -256,9 +291,9 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v2/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v2/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 fi
 
 mv -f $ID"_annot_Job" $outdir
@@ -267,8 +302,8 @@ fq=$(grep 'fastq_name_original_1\[1\]' "$outdir$ID"_Job | head -n1 | cut -c 26-)
 
 if [ $genomeref == "hg19" ]
 then
-        echo -e "\nOn pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
+        echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
 else
-	echo -e "\nOn pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample_hg38.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
+	echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample_hg38.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
 fi
 echo -e "\n  qsub this file: "$outdir$ID"_Job\n\n  instructions for the annotation of the final vcf can be found in "$outdir$ID"_custom_annotation.INFO\n"

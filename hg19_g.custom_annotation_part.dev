@@ -56,8 +56,8 @@ mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnn
 
 # Annotazione di snpEff con dbNSFP, con -f seleziono i campi da inserire
 # sostituisco il vecchio comando che usavamo con dbNSFP3.2
-java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,MetaSVM_score,MetaLR_score,M-CAP_score,M-CAP_pred,REVEL_score,CADD_phred,DANN_score,fathmm-MKL_coding_pred,Eigen_coding_or_noncoding,Eigen-PC-phred,integrated_fitCons_score,integrated_confidence_value,gnomAD_exomes_AF,gnomAD_exomes_AFR_AF,gnomAD_exomes_AMR_AF,gnomAD_exomes_ASJ_AN,gnomAD_exomes_EAS_AN,gnomAD_exomes_FIN_AN,gnomAD_exomes_NFE_AN,gnomAD_exomes_SAS_AN,gnomAD_exomes_OTH_AN,gnomAD_genomes_AF,gnomAD_genomes_AFR_AF,gnomAD_genomes_AMR_AF,gnomAD_genomes_ASJ_AF,gnomAD_genomes_EAS_AF,gnomAD_genomes_FIN_AF,gnomAD_genomes_NFE_AF,gnomAD_genomes_OTH_AF,clinvar_clnsig,clinvar_trait,clinvar_golden_stars $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
 
+java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,MetaSVM_score,MetaLR_score,M-CAP_score,M-CAP_pred,REVEL_score,CADD_phred,DANN_score,fathmm-MKL_coding_pred,Eigen_coding_or_noncoding,Eigen-PC-phred,integrated_fitCons_score,integrated_confidence_value,gnomAD_exomes_AF,gnomAD_exomes_AFR_AF,gnomAD_exomes_AMR_AF,gnomAD_exomes_ASJ_AN,gnomAD_exomes_EAS_AN,gnomAD_exomes_FIN_AN,gnomAD_exomes_NFE_AN,gnomAD_exomes_SAS_AN,gnomAD_exomes_OTH_AN,gnomAD_genomes_AF,gnomAD_genomes_AFR_AF,gnomAD_genomes_AMR_AF,gnomAD_genomes_ASJ_AF,gnomAD_genomes_EAS_AF,gnomAD_genomes_FIN_AF,gnomAD_genomes_NFE_AF,gnomAD_genomes_OTH_AF,clinvar_clnsig,clinvar_trait,clinvar_golden_stars $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 # annoto anche gli INDELS con le frequenze di gnomAD_exomes: devo usare WGSA perche' dbNSFP annota solo gli SNP
 # prima devo lasciare solo l'ultima riga dell'header, altrimenti WGSA non funziona
@@ -127,8 +127,6 @@ rm -f $outdir$ID"_tmp2CADD"*".vcf"*
 rm -f $outdir$ID"_raw_SNP_indels.CADD_scored"*".tsv.gz"*
 rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.chr"*".vcf"
 
-
-
 if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_output.txt" ]; then
 	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/spidex_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_output.txt" >> $outdir$ID"_custAnnot_log" 2>&1
 	spid=_spidex
@@ -173,6 +171,7 @@ if [ $somatic == "y" ]; then
         mv $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.genenameEff.vcf" $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
 
         # Annotazione di snpEff con dbNSFP, con -f seleziono i campi da inserire
+
         java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,MetaSVM_score,MetaLR_score,M-CAP_score,M-CAP_pred,REVEL_score,CADD_phred,DANN_score,fathmm-MKL_coding_pred,Eigen_coding_or_noncoding,Eigen-PC-phred,integrated_fitCons_score,integrated_confidence_value,gnomAD_exomes_AF,gnomAD_exomes_AFR_AF,gnomAD_exomes_AMR_AF,gnomAD_exomes_ASJ_AN,gnomAD_exomes_EAS_AN,gnomAD_exomes_FIN_AN,gnomAD_exomes_NFE_AN,gnomAD_exomes_SAS_AN,gnomAD_exomes_OTH_AN,gnomAD_genomes_AF,gnomAD_genomes_AFR_AF,gnomAD_genomes_AMR_AF,gnomAD_genomes_ASJ_AF,gnomAD_genomes_EAS_AF,gnomAD_genomes_FIN_AF,gnomAD_genomes_NFE_AF,gnomAD_genomes_OTH_AF,clinvar_clnsig,clinvar_trait,clinvar_golden_stars $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
 
         # Annotazione del vcf con i dati dbNSFP3.5_gene di dati omim, pathways etc
