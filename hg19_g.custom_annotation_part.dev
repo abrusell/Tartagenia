@@ -1,27 +1,17 @@
 reference=/pico/work/IscrC_FoRWArDS_1/db/reference/ucsc.hg19.fasta
-dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_147_hg19.vcf.gz
+dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_150_hg19.vcf.gz
 #silva=/home/andrea.ciolfi/alignment_tools/silva-1.1.1/
-#ExAC=/pico/work/IscrC_FoRWArDS_1/db/snp/ExAC.r0.3.sites.vep.mod.vcf.gz
 dbscSNV=/pico/work/IscrC_FoRWArDS_1/db/dbNSFP3.0/dbscSNV1.1.txt.gz
-# per l'hg19, nonostante quanto scritto nella documentazione, dbNSFP3 non va bene, si perde sempre delle annotazioni per alcune posizioni
-# dbNSFP=/pico/work/IscrC_FoRWArDS_1/db/dbNSFP3.2/dbNSFP3.2a.hg19.sorted.txt.gz
-dbNSFP=/pico/work/IscrC_FoRWArDS_1/db/dbNSFP2.9/dbNSFP2.9.txt.gz
+dbNSFP=/pico/work/IscrC_FoRWArDS_1/db/dbNSFP3.5/dbNSFP3.5.hg19.sorted.txt.gz
 CpG_islands=/pico/work/IscrC_FoRWArDS_1/db/UCSC_tables/CpG_islands_UCSC.bed
 repeatMasker=/pico/work/IscrC_FoRWArDS_1/db/UCSC_tables/repeatMasker_UCSC.bed
 segmentDups=/pico/work/IscrC_FoRWArDS_1/db/UCSC_tables/segmentDups_UCSC.bed
 TandemRep=/pico/work/IscrC_FoRWArDS_1/db/UCSC_tables/simpleTandemRep_UCSC.bed
-SNPEFF_HOME=/pico/home/userexternal/abrusell/snpEff/
+SNPEFF_HOME=/pico/home/userexternal/aciolfi0/snpEff4.3/
 ACMG=/pico/home/userexternal/abrusell/ACMG_RefGene.txt
 DDG2P=/pico/home/userexternal/abrusell/DDG2P_RefGene.txt
 Mendeliome=/pico/home/userexternal/abrusell/Mendeliome_RefGene.txt
-
-
-# qui ripulisco il file dalla possibilita' che il campo ALT del VCF contenga ',*', come indicazione di allele
-# deleto, secondo le spec del vcf format 4.2 perche' snpEff, a differenza di GATK,  ancora non e'
-# compatibile con questo formato e produce un VCF errato. Faccio una copia col vcf originale
-vcforig=${vcfinput%%.vcf}_ORIG.vcf
-cp $vcfinput $vcforig
-sed -i 's/\,\*/\,\<DEL_ALL\>/g' $vcfinput
+Intervar=/pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/Intervar.py
 
 if [ $phasing == "y" ]
 then
@@ -30,12 +20,15 @@ else
 	flag=
 fi
 
-# Lancio Intervar sul vcforig
+time1=$( date "+%s" )
+
+# Lancio Intervar, lo devo lanciare nella dir del config.ini, altrimenti non funziona
 cp /pico/work/IscrC_FoRWArDS_1/NGS_tools/InterVar/config.ini $outdir
-$Intervar -b hg19 -i $vcforig -o $outdir$ID &
+cd $outdir
+$Intervar -b hg19 -i $vcfinput -o $outdir$ID >$outdir$ID"_custAnnot_log" 2>&1 &
 
 # con SnpSift annotate riempo il campo ID con il dbSNP e la frequenza (CAF)
-java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info CAF $dbSNP_file $vcfinput > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
+java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info CAF $dbSNP_file $vcfinput > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 # annoto con le annotazioni custom mediante snpEff
 # attenzione SnpEff oltre alle CUSTOM annotations UCSC aggiunge anche l'effetto!!!
@@ -45,16 +38,15 @@ java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -
 # includo splice site nella finestra standard +-2 nt
 # NB le annotazioni custom non vengono aggiunte nel formato -o GATK se ci sono
 # più effetti diversi sulla stessa variante
-# snpEff 4.2
-java -Xmx64G -jar /pico/home/userexternal/abrusell/snpEff/snpEff.jar -v hg19 -i vcf -noStats -t -c /pico/home/userexternal/abrusell/snpEff/snpEff.config -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
+java -Xmx64G -jar $SNPEFF_HOME"snpEff.jar" -v hg19 -i vcf -noStats -t -c $SNPEFF_HOME"snpEff.config" -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.dbSNP.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
 # aggiungo i campi custom snpEff nell'header per attenersi strettamente allo standard vcf
 #python /pico/work/IscrC_FoRWArDS_1/NGS_tools/customSnpEffVcfFixer.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
 # rinomino l'output con l'header fixed
 #mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_fix.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
 
-# sostituisco resource.CAF con dbSNP147.GMAF nel vcf finale
-sed -i 's/=CAF,/=dbSNP147\.GMAF,/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
-sed -i 's/;CAF=/;dbSNP147\.GMAF=/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
+# sostituisco resource.CAF con dbSNP150.GMAF nel vcf finale
+sed -i 's/=CAF,/=dbSNP150\.GMAF,/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
+sed -i 's/;CAF=/;dbSNP150\.GMAF=/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf"
 
 # estraggo il genename e vari effetti dal campo ANN=(*) di snpEFF perché quando ci sono più effetti (es. SPLICE_SITE+INTRON) manca il campo SNPEFF_GENE_NAME
 python /pico/work/IscrC_FoRWArDS_1/NGS_tools/genenameEffFromSnpEff_4.2.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" 2>> $outdir$ID"_ANNOT_log"
@@ -64,38 +56,37 @@ mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnn
 
 # Annotazione di snpEff con dbNSFP, con -f seleziono i campi da inserire
 # sostituisco il vecchio comando che usavamo con dbNSFP3.2
-# java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,fathmm-MKL_coding_pred,MetaSVM_pred,MetaLR_pred,Reliability_index,MetaSVM_score,DANN_score,DANN_rankscore,CADD_phred,Eigen-raw,Eigen-raw_rankscore,Eigen-PC-raw_rankscore,integrated_fitCons_score,integrated_confidence_value,GERP++_RS,1000Gp3_AC,1000Gp3_AF,TWINSUK_AC,TWINSUK_AF,ALSPAC_AC,ALSPAC_AF,ESP6500_AA_AC,ESP6500_AA_AF,ESP6500_EA_AC,ESP6500_EA_AF,ExAC_AC,ExAC_AF,ExAC_Adj_AC,ExAC_Adj_AF,ExAC_AFR_AC,ExAC_AFR_AF,ExAC_AMR_AC,ExAC_AMR_AF,ExAC_EAS_AC,ExAC_EAS_AF,ExAC_FIN_AC,ExAC_FIN_AF,ExAC_NFE_AC,ExAC_NFE_AF,ExAC_SAS_AC,ExAC_SAS_AF,clinvar_rs,clinvar_clnsig,clinvar_trait,Interpro_domain $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
-java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,FATHMM_pred,MetaSVM_pred,MetaLR_pred,Reliability_index,MetaSVM_score,GERP++_RS,ESP6500_AA_AF,ESP6500_EA_AF,ExAC_AC,ExAC_AF,ExAC_Adj_AC,ExAC_Adj_AF,ExAC_AFR_AC,ExAC_AFR_AF,ExAC_AMR_AC,ExAC_AMR_AF,ExAC_EAS_AC,ExAC_EAS_AF,ExAC_FIN_AC,ExAC_FIN_AF,ExAC_NFE_AC,ExAC_NFE_AF,ExAC_SAS_AC,ExAC_SAS_AF,clinvar_rs,clinvar_clnsig,clinvar_trait,Interpro_domain $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" 2>> $outdir$ID"_ANNOT_log"
+java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,MetaSVM_score,MetaLR_score,M-CAP_score,M-CAP_pred,REVEL_score,CADD_phred,DANN_score,fathmm-MKL_coding_pred,Eigen_coding_or_noncoding,Eigen-PC-phred,integrated_fitCons_score,integrated_confidence_value,gnomAD_exomes_AF,gnomAD_exomes_AFR_AF,gnomAD_exomes_AMR_AF,gnomAD_exomes_ASJ_AN,gnomAD_exomes_EAS_AN,gnomAD_exomes_FIN_AN,gnomAD_exomes_NFE_AN,gnomAD_exomes_SAS_AN,gnomAD_exomes_OTH_AN,gnomAD_genomes_AF,gnomAD_genomes_AFR_AF,gnomAD_genomes_AMR_AF,gnomAD_genomes_ASJ_AF,gnomAD_genomes_EAS_AF,gnomAD_genomes_FIN_AF,gnomAD_genomes_NFE_AF,gnomAD_genomes_OTH_AF,clinvar_clnsig,clinvar_trait,clinvar_golden_stars $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 
-# annoto anche gli INDELS con le frequenze di ExAC: devo usare WGSA perche' dbNSFP annota solo gli SNP
+# annoto anche gli INDELS con le frequenze di gnomAD_exomes: devo usare WGSA perche' dbNSFP annota solo gli SNP
 # prima devo lasciare solo l'ultima riga dell'header, altrimenti WGSA non funziona
-grep ^#CHROM $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" > $outdir$ID"_WGSA_header"
-grep -v ^# $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" > $outdir$ID"_WGSA_body"
-cat $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_WGSAfix.vcf"
-java -cp /gss/gss_work/DRES_FoRWArDS/WGSA/resources/javaclass/ add_hg19_ExACgz_commandline2 $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_WGSAfix.vcf" true 1 2 4 5 indel "/gss/gss_work/DRES_FoRWArDS/WGSA/resources/ExACr0.3/" 2>> $outdir$ID"_ANNOT_log"
+grep ^#CHROM $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_header"
+grep -v ^# $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_body"
+cat $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf"
+java -cp /gss/gss_work/DRES_FoRWArDS/WGSA/resources/javaclass/ add_hg19_gnomAD_exomes_commandline $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" true 1 2 4 5 indel "/gss/gss_work/DRES_FoRWArDS/WGSA/resources/gnomAD/" 2>> $outdir$ID"_ANNOT_log"
 
 # annoto l'output di WGSA nel vcf
-# NB nell'header i campi aggiunti da WGSA sono sempre chiamati tipo dbSNFP_ExAC_Adj_AF, anche non sono aggiunti da dbNSFP
-python /pico/work/IscrC_FoRWArDS_1/NGS_tools/exac_wgsa_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_WGSAfix.vcf.addExAC" 2>> $outdir$ID"_ANNOT_log"
+# NB nell'header i campi aggiunti da WGSA sono sempre chiamati tipo dbSNFP_gnomAD_AF, anche non sono aggiunti da dbNSFP
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/gnomAD_wgsa_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes" 2>> $outdir$ID"_ANNOT_log"
 
-mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_exac.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf"
-rm -f $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_WGSAfix.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2_WGSAfix.vcf.addExAC"
+mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_gnomAD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf"
+rm -f $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes"
 
 # Annotazione di snpEff con dbscSNV, con -f seleziono i campi da inserire:
 # al momento non funziona, con l'hg38
-#java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar dbnsfp -db $dbscSNV -f RefSeq_id_c.change_p.change,Ensembl_id_c.change_p.change,RefSeq_functional_consequence,Ensembl_functional_consequence,ada_score,rf_score $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_ss.vcf" 2>> $outdir$ID"_ANNOT_log"
+#java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar dbnsfp -db $dbscSNV -f RefSeq_id_c.change_p.change,Ensembl_id_c.change_p.change,RefSeq_functional_consequence,Ensembl_functional_consequence,ada_score,rf_score $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_ss.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 # Annotazione del vcf con i dati dbNSFP3.2_gene di dati omim, pathways etc
-python /pico/work/IscrC_FoRWArDS_1/NGS_tools/dbNSFP3_geneAnnotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1 || { echo "dbNSFP3_geneAnnotator.py failed!"; exit 1; }
-sed -i 's/\,;/;/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/dbNSFP35_geneAnnotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1 || { echo "dbNSFP35_geneAnnotator.py failed!"; exit 1; }
+sed -i 's/\,;/;/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
 # Eliminiamo "Note=" dal campo Disease_description.
-sed -i 's/Note=//g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+sed -i 's/Note=//g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
 # Sostitutisco gli spazi con "_" nel vcf per rispettare lo standard vcf
-sed -i 's/ /_/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+sed -i 's/ /_/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
 
 # annotazione del VCF con i dati di miRBASE
-#/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_annomir /pico/work/IscrC_FoRWArDS_1/db/mirbase/hsa_hg19_v20_mod.gff3 $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
+#/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_annomir /pico/work/IscrC_FoRWArDS_1/db/mirbase/hsa_hg19_v20_mod.gff3 $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
 
 
 # annoto gli indels con il CADD score (v.1.3)
@@ -107,55 +98,59 @@ sed -i 's/ /_/g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.
 ####sed -i 's/^chr//g' $outdir$ID"_raw_only_indels.recode.vcf"
 ####gzip $outdir$ID"_raw_only_indels.recode.vcf"
 
+java -jar $SNPEFF_HOME"SnpSift.jar" splitChr $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" 2>> $outdir$ID"_annot_log"
 
-# lo script del CADD funziona solo se il vcf non ha "chr" come inizio riga ed e' gzippato
-sed 's/^chr//g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" | gzip > $outdir$ID"_tmp2CADD.vcf.gz"
+for i in {1..22} X Y; do
+        sed 's/^chr//g' $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.chr"$i".vcf" | gzip > $outdir$ID"_tmp2CADD_"$i".vcf.gz"
+done
+wait
 
 # carico i moduli necessari per il CADD scoring
-module load bx-python
-module load pysam
-# ottengo i CADD scores
-/gss/gss_work/DRES_FoRWArDS/CADD_v1.3/bin/score.sh $outdir$ID"_tmp2CADD.vcf.gz" $outdir$ID"_raw_SNP_indels.CADD_scored.tsv.gz"
-# aggiungo i CADD degli INDELs al campo INFO del nostro file vcf
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/addCadd2vcf.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" $outdir$ID"_raw_SNP_indels.CADD_scored.tsv.gz"
+module load python/2.7.8
+module load autoload bx-python
+module load autoload pysam
 
-rm -f $outdir$ID"_tmp2CADD.vcf.gz"
+# ottengo i CADD scores
+for j in {1..22} X Y; do
+	/gss/gss_work/DRES_FoRWArDS/CADD_v1.3/bin/score.sh $outdir$ID"_tmp2CADD_"$j".vcf.gz" $outdir$ID"_raw_SNP_indels.CADD_scored_"$j".tsv.gz" &
+done
+wait
+
+for z in {1..22} X Y; do
+	cat $outdir$ID"_raw_SNP_indels.CADD_scored_"$z".tsv.gz" >> $outdir$ID"_raw_SNP_indels.CADD_scored.tsv.gz"
+done
+
+# aggiungo i CADD degli INDELs al campo INFO del nostro file vcf
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/addCadd2vcf.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" $outdir$ID"_raw_SNP_indels.CADD_scored.tsv.gz"
+
+rm -f $outdir$ID"_tmp2CADD"*".vcf"*
+rm -f $outdir$ID"_raw_SNP_indels.CADD_scored"*".tsv.gz"*
+rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.chr"*".vcf"
+
+
 
 if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_output.txt" ]; then
-	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/spidex_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_output.txt" >> $outdir$ID"_custAnnot_log" 2>&1
+	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/spidex_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_output.txt" >> $outdir$ID"_custAnnot_log" 2>&1
 	spid=_spidex
 else
 	spid=
 fi
 
 #Annoto l'esistenza del gene nella liste ACMG, DDG2P, Mendeliome
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $ACMG $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid".vcf" ACMG >> $outdir$ID"_custAnnot_log" 2>&1
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $DDG2P $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG.vcf" DDG2P >> $outdir$ID"_custAnnot_log" 2>&1
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel >> $outdir$ID"_custAnnot_log" 2>&1
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $ACMG $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid".vcf" ACMG >> $outdir$ID"_custAnnot_log" 2>&1
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $DDG2P $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG.vcf" DDG2P >> $outdir$ID"_custAnnot_log" 2>&1
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel >> $outdir$ID"_custAnnot_log" 2>&1
 
 #annoto fenotipo HGMD (spizzi00)
-java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
+java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
 
-mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf"
+mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf"
 
 # Annoto l'interpretazione clinica di Intervar 
-python /pico/work/IscrC_FoRWArDS_1/NGS_tools/intervar_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" $outdir$ID".hg19_multianno.txt.intervar" 1>> $outdir$ID"_custAnnot_log" 2>&1
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/intervar_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" $outdir$ID".hg19_multianno.txt.intervar" 1>> $outdir$ID"_custAnnot_log" 2>&1
 
 # annoto ricorrenza del singolo vcf
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_varDBannotator $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
-
-# ora inserisco la parte di prioritizzazione delle varianti sinonime con silva
-# ripulisco il vcf dagli aplotipi e contig non mappati univocamente su GRCh38.23complGencode, altrimenti il programma non va
-#mkdir $outdir$ID"_silva_files"
-
-#$silva"silva-preprocess" $outdir$ID"_silva_files" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_eff_dbNSFP2.dbNSFP3_gene_mir_db.vcf" 2>> $outdir$ID"_silva_log"
-#$silva"silva-run" $outdir$ID"_silva_files" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.mir_db_results_silva.txt" 2>> $outdir$ID"_silva_log"
-
-# comprimo i risultati altrimenti la directory occupa 130 MB
-#tar cvfz $outdir$ID"_silva_files.tgz" $outdir$ID"_silva_files/"* 1>> $outdir$ID"_tar_log" 2>&1
-#rm -R $outdir$ID"_silva_files"
-
-
+/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_varDBannotator $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
 
 # comprimo tutti i vcf di output 
 gzip -f $outdir$ID"_raw"*".vcf"
@@ -166,11 +161,10 @@ if [ $somatic == "y" ]; then
         java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info CAF $dbSNP_file $outdir$ID"_muTect2_raw_snps-indels.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
 
         # annoto con le annotazioni custom mediante snpEff
-        # snpEff 4.2
-        java -Xmx64G -jar /pico/home/userexternal/abrusell/snpEff/snpEff.jar -v hg19 -i vcf -noStats -t -c /pico/home/userexternal/abrusell/snpEff/snpEff.config -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
+        java -Xmx64G -jar $SNPEFF_HOME"snpEff.jar" -v hg19 -i vcf -noStats -t -c $SNPEFF_HOME"snpEff.config" -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
 
         # sostituisco resource.CAF con dbSNP147.GMAF nel vcf finale
-        sed -i 's/;CAF=/;dbSNP147\.GMAF=/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
+        sed -i 's/;CAF=/;dbSNP150\.GMAF=/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
 
         # estraggo il genename e vari effetti dal campo ANN=(*) di snpEFF perché quando ci sono più effetti (es. SPLICE_SITE+INTRON) manca il campo SNPEFF_GENE_NAME
         python /pico/work/IscrC_FoRWArDS_1/NGS_tools/genenameEffFromSnpEff_4.2.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" 2>> $outdir$ID"_ANNOT_log"
@@ -179,57 +173,57 @@ if [ $somatic == "y" ]; then
         mv $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.genenameEff.vcf" $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
 
         # Annotazione di snpEff con dbNSFP, con -f seleziono i campi da inserire
-        java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,FATHMM_pred,MetaSVM_pred,MetaLR_pred,Reliability_index,MetaSVM_score,GERP++_RS,ESP6500_AA_AF,ESP6500_EA_AF,ExAC_AC,ExAC_AF,ExAC_Adj_AC,ExAC_Adj_AF,ExAC_AFR_AC,ExAC_AFR_AF,ExAC_AMR_AC,ExAC_AMR_AF,ExAC_EAS_AC,ExAC_EAS_AF,ExAC_FIN_AC,ExAC_FIN_AF,ExAC_NFE_AC,ExAC_NFE_AF,ExAC_SAS_AC,ExAC_SAS_AF,clinvar_rs,clinvar_clnsig,clinvar_trait,Interpro_domain $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" 2>> $outdir$ID"_ANNOT_log"
+        java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_allele,Ensembl_geneid,Ensembl_transcriptid,aapos,SIFT_pred,Polyphen2_HDIV_pred,Polyphen2_HVAR_pred,MetaSVM_score,MetaLR_score,M-CAP_score,M-CAP_pred,REVEL_score,CADD_phred,DANN_score,fathmm-MKL_coding_pred,Eigen_coding_or_noncoding,Eigen-PC-phred,integrated_fitCons_score,integrated_confidence_value,gnomAD_exomes_AF,gnomAD_exomes_AFR_AF,gnomAD_exomes_AMR_AF,gnomAD_exomes_ASJ_AN,gnomAD_exomes_EAS_AN,gnomAD_exomes_FIN_AN,gnomAD_exomes_NFE_AN,gnomAD_exomes_SAS_AN,gnomAD_exomes_OTH_AN,gnomAD_genomes_AF,gnomAD_genomes_AFR_AF,gnomAD_genomes_AMR_AF,gnomAD_genomes_ASJ_AF,gnomAD_genomes_EAS_AF,gnomAD_genomes_FIN_AF,gnomAD_genomes_NFE_AF,gnomAD_genomes_OTH_AF,clinvar_clnsig,clinvar_trait,clinvar_golden_stars $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 2>> $outdir$ID"_ANNOT_log"
 
-        # Annotazione del vcf con i dati dbNSFP3.2_gene di dati omim, pathways etc
-        python /pico/work/IscrC_FoRWArDS_1/NGS_tools/dbNSFP3_geneAnnotator.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1 || { echo "dbNSFP3_geneAnnotator.py failed!"; exit 1; }
-        sed -i 's/\,;/;/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+        # Annotazione del vcf con i dati dbNSFP3.5_gene di dati omim, pathways etc
+        python /pico/work/IscrC_FoRWArDS_1/NGS_tools/dbNSFP35_geneAnnotator.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1 || { echo "dbNSFP35_geneAnnotator.py failed!"; exit 1; }
+        sed -i 's/\,;/;/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
         # Eliminiamo "Note=" dal campo Disease_description.
-        sed -i 's/Note=//g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+        sed -i 's/Note=//g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
         # Sostitutisco gli spazi con "_" nel vcf per rispettare lo standard vcf
-        sed -i 's/ /_/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf"
+        sed -i 's/ /_/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf"
 
         # annotazione del VCF con i dati di miRBASE
-        #/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_annomir /pico/work/IscrC_FoRWArDS_1/db/mirbase/hsa_hg19_v20_mod.gff3 $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
+        #/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_annomir /pico/work/IscrC_FoRWArDS_1/db/mirbase/hsa_hg19_v20_mod.gff3 $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
 	# lo script del CADD funziona solo se il vcf non ha "chr" come inizio riga ed e' gzippato
-	sed 's/^chr//g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" | gzip > $outdir$ID"_mt2_tmp2CADD.vcf.gz"
+	sed 's/^chr//g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" | gzip > $outdir$ID"_mt2_tmp2CADD.vcf.gz"
 
 	zgrep ^# $outdir$ID"_mt2_tmp2CADD.vcf.gz" > $outdir$ID"_mt2_tmp2CADD.header"
-
 	zgrep -v ^# $outdir$ID"_mt2_tmp2CADD.vcf.gz" > $outdir$ID"_mt2_tmp2CADD.body"
 
 	for i in {1..22} X Y; do grep ^$i"	" $outdir$ID"_mt2_tmp2CADD.body" > $outdir$ID"_mt2_tmp2CADD.body."$i; done
 
 	for i in {1..22} X Y; do cat $outdir$ID"_mt2_tmp2CADD.header" $outdir$ID"_mt2_tmp2CADD.body."$i | gzip > $outdir$ID"_mt2_tmp2CADD."$i".vcf.gz"; done
-      
+
 	for i in {1..22} X Y; do
-
 		/gss/gss_work/DRES_FoRWArDS/CADD_v1.3/bin/score.sh $outdir$ID"_mt2_tmp2CADD."$i".vcf.gz" $outdir$ID"_raw_SNP_indels.CADD_scored"$i".tsv.gz"
-
 		zgrep -v ^# $outdir$ID"_raw_SNP_indels.CADD_scored"$i".tsv.gz" >> $outdir$ID"_raw_SNP_indels.CADD_scored.tsv"
 	done
 	
 	for i in {1..22} X Y; do rm $outdir$ID"_mt2_tmp2CADD.body."$i $outdir$ID"_mt2_tmp2CADD."$i".vcf.gz" $outdir$ID"_raw_SNP_indels.CADD_scored"$i".tsv.gz"; done
 
 	# aggiungo i CADD degli INDELs al campo INFO del nostro file vcf
-        /pico/work/IscrC_FoRWArDS_1/NGS_tools/addCadd2vcf.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene.vcf" $outdir$ID"_raw_SNP_indels.CADD_scored.tsv"
+        /pico/work/IscrC_FoRWArDS_1/NGS_tools/addCadd2vcf.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene.vcf" $outdir$ID"_raw_SNP_indels.CADD_scored.tsv"
 
         if [ -s $outdir$ID"_muTect2_raw_snps-indels_spidex_output.txt" ]; then
-                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/spidex_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd.vcf" $outdir$ID"_muTect2_raw_snps-indels_spidex_output.txt" >> $outdir$ID"_custAnnot_log" 2>&1
+                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/spidex_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd.vcf" $outdir$ID"_muTect2_raw_snps-indels_spidex_output.txt" >> $outdir$ID"_custAnnot_log" 2>&1
                 spid=_spidex
                 else
                      spid=
         fi
 
 	#Annoto l'esistenza del gene nella liste ACMG, DDG2P, Mendeliome
-	/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $ACMG $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid".vcf" ACMG
-        /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $DDG2P $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG.vcf" DDG2P
-        /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel
+	/pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $ACMG $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid".vcf" ACMG
+        /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $DDG2P $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG.vcf" DDG2P
+        /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel
 
 	# annoto ricorrenza del singolo vcf
-	/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_varDBannotator $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
+	/pico/work/IscrC_FoRWArDS_1/NGS_tools/run_varDBannotator $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" 1>> $outdir$ID"_custAnnot_log" 2>&1
 
 	# comprimo tutti i vcf di output 
         gzip -f $outdir$ID"_muTect2_raw"*".vcf"
 
 fi
+
+time2=$( date "+%s" )
+echo [Total time] $((($time2 - $time1)/60)) min > $outdir$ID"_ANNOT_Time.log"
