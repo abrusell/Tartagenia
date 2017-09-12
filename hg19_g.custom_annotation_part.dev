@@ -226,4 +226,4 @@ if [ $somatic == "y" ]; then
 fi
 
 time2=$( date "+%s" )
-echo [Total time] $((($time2 - $time1)/60)) min > $outdir$ID"_ANNOT_Time.log"
+echo [Total time] $((($time2 - $time1)/60)) min > $outdir$ID"_ANNOT_log"
