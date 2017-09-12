@@ -140,7 +140,7 @@ fi
 /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel >> $outdir$ID"_custAnnot_log" 2>&1
 
 #annoto fenotipo HGMD (spizzi00)
-java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
+java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf"
 
@@ -225,4 +225,4 @@ if [ $somatic == "y" ]; then
 fi
 
 time2=$( date "+%s" )
-echo [Total time] $((($time2 - $time1)/60)) min > $outdir$ID"_ANNOT_Time.log"
+echo [Total time] $((($time2 - $time1)/60)) min >> $outdir$ID"_ANNOT_Time.log"
