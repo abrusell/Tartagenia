@@ -226,7 +226,9 @@ echo [elapsed time] $((($time10 - $time9)/60)) min >> $outdir$ID"_Job_Time.log"
 # check if family info is set
 if [ ${#member_name[@]} -eq 0 ]; then
 
-	echo "Family members are not defined!" >> $outdir$ID"_GATK_log" 2>&1
+	echo "##############################################" >> $outdir$ID"_GATK_log" 2>&1
+	echo "#### N.B. Family members are not defined! ####" >> $outdir$ID"_GATK_log" 2>&1
+	echo "##############################################" >> $outdir$ID"_GATK_log" 2>&1
 	# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
 	# and from previously analyzed samples (to VQSR)
 	# into a single joint VCF file.
@@ -273,6 +275,9 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-tranchesFile $outdir$ID"_snps.VQSR.tranches" \
 		-allPoly \
 		-an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an InbreedingCoeff \
+		-tranche 100.0 -tranche 99.9 -tranche 99.5 -tranche 99.0 -tranche 98.0 \
+		-tranche 97.0 -tranche 96.0 -tranche 95.0 -tranche 94.0 -tranche 93.0 \
+		-tranche 92.0 -tranche 91.0 -tranche 90.0 \
 		-resource:hapmap,known=false,training=true,truth=true,prior=15 $hapmap \
 		-resource:omni1000g,known=false,training=true,truth=true,prior=12 $onethous_genomes \
 		-resource:highconf1000G,known=false,training=true,truth=false,prior=10 $knownSNPs \
@@ -291,6 +296,9 @@ if [ ${#member_name[@]} -eq 0 ]; then
                 -recalFile $outdir$ID"_indels.VQSR.recal" \
                 -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
 		-allPoly \
+                -tranche 100.0 -tranche 99.9 -tranche 99.5 -tranche 99.0 -tranche 98.0 \
+                -tranche 97.0 -tranche 96.0 -tranche 95.0 -tranche 94.0 -tranche 93.0 \
+                -tranche 92.0 -tranche 91.0 -tranche 90.0 \
 		-an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
 		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
 		-resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
@@ -299,7 +307,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-		#Apply SNP VQSR on genotypes file (SNP sensitivity 99.5)
+		#Apply SNP VQSR on genotypes file (SNP sensitivity 95.0)
 		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
 		-T ApplyRecalibration \
 		-R $reference \
@@ -309,10 +317,10 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-L $targetRegChipDir"/allchrs.bed" \
 		-recalFile $outdir$ID"_snps.VQSR.recal" \
                 -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
-		-ts_filter_level 99.5 -mode SNP \
+		-ts_filter_level 95.0 -mode SNP \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-		#Apply Indel VQSR on genotypes file (INDEL sensitivity 99.0)
+		#Apply Indel VQSR on genotypes file (INDEL sensitivity 95.0)
 		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
                 -T ApplyRecalibration \
                 -R $reference \
@@ -322,7 +330,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-L $targetRegChipDir"/allchrs.bed" \
 		-recalFile $outdir$ID"_indels.VQSR.recal" \
                 -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
-		-ts_filter_level 99.0 -mode INDEL \
+		-ts_filter_level 95.0 -mode INDEL \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
 		# select only family samples
@@ -343,6 +351,41 @@ if [ ${#member_name[@]} -eq 0 ]; then
                 -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
                 -sn $ID \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+		
+		# unifico i due vcf
+	        # non posso usare catVariants perche' gli header
+	        # degli SNP e degli INDEL sono diversi
+	        # se non metti KEEP_IF_ALL_UNFILTERED ti risulteranno tutte le varianti col filtro PASS
+	        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T CombineVariants -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	        --genotypemergeoption UNIQUIFY \
+	        -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        # estraggo solo il primo sample 
+	        # delle due colonne che ha scritto CombineVariants
+	        # (tanto i campioni sono uguali)
+	        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T SelectVariants -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        # modifico il nome della colonna sample per ripristinare quello originario
+	        # rimuovo i file intermedi
+	        gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
+	        # Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
+	        # that the variable contains, such as / or . would have to be escaped.
+	        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	        bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	        tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"*
+	        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
+
 
 	else
 		# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
@@ -412,39 +455,32 @@ if [ ${#member_name[@]} -eq 0 ]; then
 	        --filterName "LowQual" \
 	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
+		# rimetto insieme i 2 VCF
+                # questo workaround e' necessario
+                # perche' combineVariants crea problemi con le varianti separate nei due file, snp e indels
+                # quindi lo posso usare sono nel caso di VQSR
+                gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"
+                gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"
+                $java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
+                -R $reference \
+                -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+                -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+                -out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+                # devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+                # se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
+                $java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf \
+                I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
+                O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict \
+                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+                # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+                rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+                # rinomino come il file iniziale
+                mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+                bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+                tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+
 	fi
-
-	# unifico i due vcf
-	# non posso usare catVariants perche' gli header
-	# degli SNP e degli INDEL sono diversi
-	$java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-T CombineVariants -R $reference \
-	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
-	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
-	-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
-	--genotypemergeoption UNIQUIFY \
-	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-	# estraggo solo il primo sample 
-	# delle due colonne che ha scritto CombineVariants
-	# (tanto i campioni sono uguali)
-	$java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	-T SelectVariants -R $reference \
-	-V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
-	-o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
-	>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-	# modifico il nome della colonna sample per ripristinare quello originario
-	# rimuovo i file intermedi
-	gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
-	# Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
-        # that the variable contains, such as / or . would have to be escaped.
-        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
-	bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
-	mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
-	tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
-	rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"* 
-	rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
 
 	time11=$( date "+%s" )
         echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
@@ -516,6 +552,9 @@ else
                 -recalFile $outdir$ID"_snps.VQSR.recal" \
                 -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
                 -allPoly \
+                -tranche 100.0 -tranche 99.9 -tranche 99.5 -tranche 99.0 -tranche 98.0 \
+                -tranche 97.0 -tranche 96.0 -tranche 95.0 -tranche 94.0 -tranche 93.0 \
+                -tranche 92.0 -tranche 91.0 -tranche 90.0 \
                 -an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an InbreedingCoeff \
                 -resource:hapmap,known=false,training=true,truth=true,prior=15 $hapmap \
                 -resource:omni1000g,known=false,training=true,truth=true,prior=12 $onethous_genomes \
@@ -535,6 +574,9 @@ else
                 -recalFile $outdir$ID"_indels.VQSR.recal" \
                 -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
                 -allPoly \
+                -tranche 100.0 -tranche 99.9 -tranche 99.5 -tranche 99.0 -tranche 98.0 \
+                -tranche 97.0 -tranche 96.0 -tranche 95.0 -tranche 94.0 -tranche 93.0 \
+                -tranche 92.0 -tranche 91.0 -tranche 90.0 \
                 -an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
 		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
                 -resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
@@ -543,7 +585,7 @@ else
                 -rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-                #Apply SNP VQSR on genotypes file (SNP sensitivity 99.5)
+                #Apply SNP VQSR on genotypes file (SNP sensitivity 95.0)
                 $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
                 -T ApplyRecalibration \
                 -R $reference \
@@ -553,10 +595,10 @@ else
                 -L $targetRegChipDir"/allchrs.bed" \
                 -recalFile $outdir$ID"_snps.VQSR.recal" \
                 -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
-                -ts_filter_level 99.5 -mode SNP \
+                -ts_filter_level 95.0 -mode SNP \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
-                #Apply Indel VQSR on genotypes file (INDEL sensitivity 99.0)
+                #Apply Indel VQSR on genotypes file (INDEL sensitivity 95.0)
                 $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
                 -T ApplyRecalibration \
                 -R $reference \
@@ -566,7 +608,7 @@ else
                 -L $targetRegChipDir"/allchrs.bed" \
                 -recalFile $outdir$ID"_indels.VQSR.recal" \
                 -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
-                -ts_filter_level 99.0 -mode INDEL \
+                -ts_filter_level 95.0 -mode INDEL \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 	
                 # select only family samples
@@ -589,6 +631,44 @@ else
                 -sn $ID \
 		$(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+		# unifico i due vcf
+	        # non posso usare catVariants perche' gli header
+	        # degli SNP e degli INDEL sono diversi
+	        # se non metti KEEP_IF_ALL_UNFILTERED ti risulteranno tutte le varianti con il filtro PASS
+	        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T CombineVariants -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	        --genotypemergeoption UNIQUIFY \
+	        -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        # estraggo solo il primo sample 
+	        # delle due colonne che ha scritto CombineVariants
+	        # (tanto i campioni sono uguali)
+	        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -T SelectVariants -R $reference \
+	        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
+	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
+	        $(for sn in ${member_name[@]}; do echo "--sample_name "$sn".variant"; done) \
+	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+
+	        # modifico il nome della colonna sample per ripristinare quello originario
+	        gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
+	        # Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
+	        # that the variable contains, such as / or . would have to be escaped.
+	        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	        for sub in ${member_name[@]}; do
+	                escaped_sub=$(printf '%s\n' "$sub" | sed 's:[][\/.^$*&]:\\&:g')
+        	        sed -i "s/$escaped_sub\.variant/$escaped_sub/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	        done
+	        bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
+	        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	        tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+	        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"*
+	        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
 
 	else
 
@@ -657,44 +737,32 @@ else
 	        --filterName "LowQual" \
 	        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
+	        # rimetto insieme i 2 VCF
+		# questo workaround e' necessario
+		# perche' combineVariants crea problemi con le varianti separate nei due file, snp e indels
+		# quindi lo posso usare sono nel caso di VQSR
+		gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"
+        	gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"
+		$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
+		-R $reference \
+		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+		-V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+		-out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+        	# devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+        	# se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
+        	$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf \
+		I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
+		O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+	        # se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+	        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+	        # rinomino come il file iniziale
+	        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+		bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+		tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+
 	fi
-
-	# unifico i due vcf
-        # non posso usare catVariants perche' gli header
-        # degli SNP e degli INDEL sono diversi
-        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T CombineVariants -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
-        --genotypemergeoption UNIQUIFY \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-        # estraggo solo il primo sample 
-        # delle due colonne che ha scritto CombineVariants
-        # (tanto i campioni sono uguali)
-        $java -Xmx32g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-        -T SelectVariants -R $reference \
-        -V $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" \
-        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" -sn $ID".variant" \
-	$(for sn in ${member_name[@]}; do echo "--sample_name "$sn".variant"; done) \
-        >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
-
-        # modifico il nome della colonna sample per ripristinare quello originario
-        gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz"
-        # Beware that $sub in such sed expression would be taken as a regular expression and so any special characters 
-        # that the variable contains, such as / or . would have to be escaped.
-        sed -i "s/$escaped_id\.variant/$escaped_id/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
-        for sub in ${member_name[@]}; do
-                escaped_sub=$(printf '%s\n' "$sub" | sed 's:[][\/.^$*&]:\\&:g')
-                sed -i "s/$escaped_sub\.variant/$escaped_sub/g" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
-        done
-	bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf"
-        mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
-        tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
-        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_clean.g.vcf.gz.tbi" $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"*
-        rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"*
-
 
 	time11=$( date "+%s" )
 	echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_Job_Time.log"
