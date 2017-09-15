@@ -128,7 +128,7 @@ fi
 /pico/work/IscrC_FoRWArDS_1/NGS_tools/ExistingGenesAnnotator.py $Mendeliome $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P.vcf" Mendel >> $outdir$ID"_custAnnot_log" 2>&1
 
 #annoto fenotipo HGMD (spizzi00)
-java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
+java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info PHEN /pico/work/IscrC_FoRWArDS_1/db/HGMD_PRO_latest_hg19.vcf.gz $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" 2>> $outdir$ID"_ANNOT_log"
 
 mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_HGMD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP2.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel.vcf"
 
@@ -144,7 +144,7 @@ gzip -f $outdir$ID"_raw"*".vcf"
 if [ $somatic == "y" ]; then
 
         # con SnpSift annotate riempo il campo ID con il dbSNP e la frequenza (CAF)
-        java -Xmx64g -jar /pico/home/userexternal/abrusell/snpEff/SnpSift.jar annotate -info CAF $dbSNP_file $outdir$ID"_muTect2_raw_snps-indels.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
+        java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info CAF $dbSNP_file $outdir$ID"_muTect2_raw_snps-indels.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
 
         # annoto con le annotazioni custom mediante snpEff
         java -Xmx64G -jar $SNPEFF_HOME"snpEff.jar" -v hg19 -i vcf -noStats -t -c $SNPEFF_HOME"snpEff.config" -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
