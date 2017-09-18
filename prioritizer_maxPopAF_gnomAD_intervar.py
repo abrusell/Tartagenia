@@ -26,12 +26,12 @@ with open(phenolist) as f:
 	pheno_terms = f.read().splitlines()
 
 out.write("##Phenolyzer terms used: "+", ".join(pheno_terms)+"\n")
-out.write(header.rstrip()+"\tVar_nt_pos\tVar_aa_pos\tEffect\tgeneName\tDisease_description\tGene_full_name\tCADD_phred\tdbNSFP_MetaSVM_score\tRECURRENCE_IN_OUR_DB\tPhenolyzer_score\tFinal_score\tInterVar\tImpact\tFeature_id\tANN\tdbSNP.GMAF\tGO_biological_process\tdbNSFP_maxPop_AF_gnomAD_exomes_AF\tRVIS_gnomAD_exomes_0.05_percentile\tGDI\tWarning\n")
+out.write(header.rstrip()+"\tVar_nt_pos\tVar_aa_pos\tEffect\tgeneName\tDisease_description\tGene_full_name\tCADD_phred\tdbNSFP_MetaSVM_score\tRECURRENCE_IN_OUR_DB\tPhenolyzer_score\tFinal_score\tInterVar\tImpact\tFeature_id\tANN\tGO_biological_process\tdbNSFP_maxPop_AF_gnomAD_exomes_AF\tRVIS_gnomAD_exomes_0.05_percentile\tGDI\tWarning\n")
 
 found_gnomad			= ""
 found_db			= ""
-found_db_aff			= ""
-found_db_solv			= ""
+#found_db_aff			= ""
+#found_db_solv			= ""
 found_impact			= ""
 found_cadd			= ""
 found_svm			= ""
@@ -44,7 +44,7 @@ found_maineffect		= ""
 found_genename			= ""
 found_feature_id		= ""
 found_ann			= ""
-found_dbsnp			= ""
+#found_dbsnp			= ""
 found_disease_desc		= ""
 found_gene_full_name		= ""
 found_go_biol_proc		= ""
@@ -112,13 +112,13 @@ for vcfline in vcf.readlines():
 		else:
 			found_ann = "."
 
-		dbsnp=re.search('dbSNP1..\.GMAF=(.+?);', vcfline.rstrip())
-		if dbsnp:
-			found_dbsnp = dbsnp.group(1)
-			if found_dbsnp.startswith(";"):
-				found_dbsnp = "."
-		else:
-			found_dbsnp = "."
+#		dbsnp=re.search('dbSNP1..\.GMAF=(.+?);', vcfline.rstrip())
+#		if dbsnp:
+#			found_dbsnp = dbsnp.group(1)
+#			if found_dbsnp.startswith(";"):
+#				found_dbsnp = "."
+#		else:
+#			found_dbsnp = "."
 
 		disease_desc=re.search('Disease_description=(.+?);', vcfline.rstrip())
 		if disease_desc:
@@ -270,19 +270,19 @@ for vcfline in vcf.readlines():
 		else:
 			found_db = "."
 
-		db_aff=re.search('Affected_recurrence=(.+?);', vcfline.rstrip())
-		if db:
-			found_db_aff = db_aff.group(1)
-			subfound_db_aff = re.split("/", found_db_aff)
-		else:
-			found_db_aff = "."
+#		db_aff=re.search('Affected_recurrence=(.+?);', vcfline.rstrip())
+#		if db:
+#			found_db_aff = db_aff.group(1)
+#			subfound_db_aff = re.split("/", found_db_aff)
+#		else:
+#			found_db_aff = "."
 
-		db_solv=re.search('Solved_recurrence=(.+?);', vcfline.rstrip())
-		if db_solv:
-			found_db_solv = db_solv.group(1)
-			subfound_db_solv = re.split("/", found_db_solv)
-		else:
-			found_db_solv = "."
+#		db_solv=re.search('Solved_recurrence=(.+?);', vcfline.rstrip())
+#		if db_solv:
+#			found_db_solv = db_solv.group(1)
+#			subfound_db_solv = re.split("/", found_db_solv)
+#		else:
+#			found_db_solv = "."
 
                 impact=re.search('Impact=(.+?);', vcfline.rstrip())
                 if impact:
@@ -441,13 +441,13 @@ for vcfline in vcf.readlines():
 #		print "Phenolyzer_score:\t",0.25*(float(Phenolyzer_score))
 #		print spline[0]+"\t"+spline[1]+"\tFinal_score:\t"+str(Final_score)
 		if not "." in all_gnomAD_exomes:
-			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_svm)+"\t="+found_db+"\t="+found_db_aff+"\t="+found_db_solv+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_dbsnp+"\t"+found_go_biol_proc+"\t"+str(max_gnomAD_exomes_AF)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
+			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_svm)+"\t="+found_db+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_go_biol_proc+"\t"+str(max_gnomAD_exomes_AF)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
 			if warn == 1:
 				out.write("\tMultiple gnomAD_exomes/CADD/SVM values\n")
 			else:
 				out.write("\t.\n")
 		else:
-			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_svm)+"\t="+found_db+"\t="+found_db_aff+"\t="+found_db_solv+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_dbsnp+"\t"+found_go_biol_proc+"\t"+str(all_gnomAD_exomes)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
+			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_svm)+"\t="+found_db+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_go_biol_proc+"\t"+str(all_gnomAD_exomes)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
 			if warn == 1:
                                 out.write("\tMultiple gnomAD_exomes/CADD/SVM values\n")
                         else:
