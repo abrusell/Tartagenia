@@ -153,14 +153,11 @@ gzip -f $outdir$ID"_raw"*".vcf"
 
 if [ $somatic == "y" ]; then
 
-        # con SnpSift annotate riempo il campo ID con il dbSNP e la frequenza (CAF)
-        java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -info CAF $dbSNP_file $outdir$ID"_muTect2_raw_snps-indels.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
+        # con SnpSift annotate riempo il campo ID con il dbSNP
+        java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" annotate -id $dbSNP_file $outdir$ID"_muTect2_raw_snps-indels.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" 2>> $outdir$ID"_ANNOT_log"
 
         # annoto con le annotazioni custom mediante snpEff
         java -Xmx64G -jar $SNPEFF_HOME"snpEff.jar" -v hg19 -i vcf -noStats -t -c $SNPEFF_HOME"snpEff.config" -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
-
-        # sostituisco resource.CAF con dbSNP147.GMAF nel vcf finale
-        sed -i 's/;CAF=/;dbSNP150\.GMAF=/g' $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
 
         # estraggo il genename e vari effetti dal campo ANN=(*) di snpEFF perché quando ci sono più effetti (es. SPLICE_SITE+INTRON) manca il campo SNPEFF_GENE_NAME
         python /pico/work/IscrC_FoRWArDS_1/NGS_tools/genenameEffFromSnpEff_4.2.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" 2>> $outdir$ID"_ANNOT_log"
