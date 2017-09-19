@@ -210,8 +210,8 @@ if [ $vqsr == "y" ]
         	grep "_HapCall.g.vcf.gz$" $outdir"gvcf.tmp.list" > $outdir"gvcf.list"
 		rm $outdir"gvcf.tmp.list"
 		while read -r gvcf; do
-			if [[ ! -e $gvcf ]]; then
-        			echo $gvcf "does not exist"
+			if [[ ! -e "${gvcf}.tbi" ]]; then
+        			echo $gvcf "does not exist or it is not bgzipped and tabindexed"
         			exit 1
 			fi
 		done < "${outdir}gvcf.list"
