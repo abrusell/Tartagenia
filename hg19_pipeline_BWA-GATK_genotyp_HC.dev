@@ -17,7 +17,7 @@ knownInd_1=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.indels.hg19.vcf.gz
 knownInd_2=/pico/work/IscrC_FoRWArDS_1/db/snp/Mills_and_1000G_gold_standard.indels.hg19.vcf.gz
 axiomPoly=/pico/work/IscrC_FoRWArDS_1/db/snp/Axiom_Exome_Plus.genotypes.all_populations.poly.vcf.gz
 mendeliome=/pico/work/IscrC_FoRWArDS_1/db/refGene/2016/Mendeliome+ACMG+DDG2P_refGene_exons50_sorted.bed
-bedtools=/pico/home/userexternal/spizzi00/bedtools2-2.26.0/bin/
+bedtools=/pico/home/userexternal/abrusell/bedtools2/bin/
 genomefile=/gpfs/work/IscrC_FoRWArDS_1/db/reference/bedtools.genomefile.hg19
 
 # Beware that $variable in such sed expression would be taken as a regular expression and so any special characters 
