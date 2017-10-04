@@ -1,5 +1,5 @@
 bwakit=/pico/home/userexternal/abrusell/bwa.kit-0.7.12/
-GATK_HOME=/pico/home/userexternal/aciolfi0/GenomeAnalysisTK-3.7/
+GATK_HOME=/pico/work/IscrC_FoRWArDS_1/NGS_tools/GenomeAnalysisTK-3.8-0-ge9d806836/
 PICARD_HOME=/cineca/prod/applications/picard/2.3.0/binary/bin/
 java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
 
@@ -238,9 +238,8 @@ if [ ${#member_name[@]} -eq 0 ]; then
 
 	if [ $VQSR == "y" ]; then
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		$java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
 		-R $reference \
-		-nt 6 \
 		-T GenotypeGVCFs \
 		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
 		--variant $outdir"gvcf.list" \
@@ -390,9 +389,8 @@ if [ ${#member_name[@]} -eq 0 ]; then
 	else
 		# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                $java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
                 -R $reference \
-                -nt 6 \
                 -T GenotypeGVCFs \
                 --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
                 -A Coverage \
@@ -515,9 +513,8 @@ else
 
         if [ $VQSR == "y" ]; then
                 echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                $java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
                 -R $reference \
-                -nt 6 \
                 -T GenotypeGVCFs \
                 --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
                 $(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf.gz"; done) \
@@ -675,10 +672,9 @@ else
 		# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
 		# into a single joint VCF file.
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-		$java -Xmx20g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		$java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
 		-R $reference \
 		-T GenotypeGVCFs \
-		-nt 6 \
 		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
 		$(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf.gz"; done) \
 		-A Coverage \
