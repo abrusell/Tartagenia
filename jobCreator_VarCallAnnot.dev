@@ -274,7 +274,7 @@ fi
 echo -e "#PBS -W group_list=SIGU_Tarta17" >> $ID"_annot_Job"
 echo -e "#PBS -A SIGU_Tarta17" >> $ID"_annot_Job"
 echo -e "#PBS -q parallel" >> $ID"_annot_Job"
-echo -e "#PBS -l walltime=2:00:00" >> $ID"_annot_Job"
+echo -e "#PBS -l walltime=12:00:00" >> $ID"_annot_Job"
 echo -e "\numask 0002\n" >> $ID"_annot_Job"
 echo -e "## definizione delle variabili di input" >> $ID"_annot_Job"
 echo -e "ID="$ID >> $ID"_annot_Job"
