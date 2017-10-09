@@ -6,7 +6,7 @@ java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
 # definizione delle variabili di input
 reference=/pico/work/IscrC_FoRWArDS_1/db/reference/ucsc.hg19.fasta
 ref_dict=${reference%%.fasta}.dict
-dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_147_hg19.vcf.gz
+dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_150_hg19.vcf.gz
 #target_regions=/pico/work/IscrC_FoRWArDS_1/db/target_regions/
 #mir_target_regions=/pico/work/IscrC_FoRWArDS_1/db/hg38/target_regions/mir/
 cosmic=/pico/work/IscrC_FoRWArDS_1/db/cosmic/CosmicCodingNonCodingVariantsV76_fixed.vcf.gz
