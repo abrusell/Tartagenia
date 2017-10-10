@@ -284,9 +284,9 @@ echo -e "phasing="$phase >> $ID"_annot_Job"
 
 if [ $phase == "y" ]
 then
-	echo -e "vcfinput="$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf" >> $ID"_annot_Job"
+	echo -e "vcfinput="$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_phased.g.vcf.gz" >> $ID"_annot_Job"
 else
-	echo -e "vcfinput="$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" >> $ID"_annot_Job"
+	echo -e "vcfinput="$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" >> $ID"_annot_Job"
 fi
 
 if [ $genomeref == "hg19" ]
