@@ -339,7 +339,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 	                -T ApplyRecalibration \
 	                -R $reference \
 			-input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
-	                -o $outdir$IDi"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+	                -o $outdir$ID"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
 			-L $targetRegChipDir"/"$j".bed" \
 			-recalFile $outdir$ID"_indels.VQSR.recal" \
 	                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
@@ -636,7 +636,7 @@ else
 			-recalFile $outdir$ID"_snps.VQSR.recal" \
 	                -tranchesFile $outdir$ID"_snps.VQSR.tranches" \
 	                -ts_filter_level 95.0 -mode SNP \
-	                >> $outdir$IDi"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
+	                >> $outdir$ID"_"$j"_GATK_log" 2>> $outdir$ID"_"$j"_GATK_log" &
 		done
 		wait
 
@@ -646,7 +646,7 @@ else
         	        -T ApplyRecalibration \
 	                -R $reference \
 	                -input $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
-	                -o $outdir$IDi"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
+	                -o $outdir$ID"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
 	                -L $targetRegChipDir"/"$j".bed" \
 	                -recalFile $outdir$ID"_indels.VQSR.recal" \
 	                -tranchesFile $outdir$ID"_indels.VQSR.tranches" \
