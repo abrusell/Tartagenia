@@ -385,7 +385,7 @@ for vcfline in vcf.readlines():
 		if (float(subfound_db[0])/float(subfound_db[1]) >= 0.25):
 			Final_score = Final_score - 50
 		if "," in spline[4]:
-			Final_score = Final_score - 20
+			Final_score = Final_score - 50
 
 #		print spline[0], spline[1], "exac: ",found_exac,"\tdb: ",str(float(subfound_db[0])/float(subfound_db[1])),"\timpact: ",found_impact,"\tcadd: ",found_cadd,"\tsvm: ",found_svm,"\trvis: ",found_rvis,"\tgdi: ",found_gdi,"\tphenolyzer score: ",found_phlyz
 #		print "exac_score:\t",0.5*(float(exac_score))
