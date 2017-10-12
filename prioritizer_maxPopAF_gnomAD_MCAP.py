@@ -404,7 +404,7 @@ for vcfline in vcf.readlines():
 			if found_gdi == ".":
 				Gene_predict_score = 100
 			elif float(found_gdi) <= 13.84:
-				Gene_predict_score = 100
+				Gene_predict_score = 120
 			else:
 				Gene_predict_score = 40
 		elif float(found_rvis) >= 25:
