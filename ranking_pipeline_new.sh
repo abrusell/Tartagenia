@@ -27,10 +27,10 @@ fi
 
 
 # filtro per le CDS e i SS
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfSifter.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db.vcf.gz" 2> $outdir$ID"_ranking_log"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfSifter.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db.vcf.gz" 2> $outdir$ID"_ranking_log"
 
 # estraggo la lista dei geni nel vcf
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcf2genelist.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.vcf" 2>> $outdir$ID"_ranking_log"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/vcf2genelist.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.vcf" 2>> $outdir$ID"_ranking_log"
 
 # ordino e elimino duplicati
 sort -u $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.genelist.txt" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_genelist_sorted.txt"
@@ -40,10 +40,10 @@ rm $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNS
 perl /pico/home/userexternal/aciolfi0/phenolyzer/disease_annotation.pl -f -p --gene $ID"_raw_snps-indels_HapCall_genotype_filtered_genelist_sorted.txt" -ph $phenolist -logistic -out "Pheno/"$ID -addon DB_DISGENET_GENE_DISEASE_SCORE,DB_GAD_GENE_DISEASE_SCORE -addon_weight 0.25 2>> $outdir$ID"_ranking_log"
 
 # aggiungo il phenolyzer score al vcf
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/phenolyzer_score_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.vcf" $outdir"Pheno/"$ID".final_gene_list" 2>> $outdir$ID"_ranking_log"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/phenolyzer_score_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.vcf" $outdir"Pheno/"$ID".final_gene_list" 2>> $outdir$ID"_ranking_log"
 
 # applico il nostro schema di scoring alle varianti
-/pico/work/IscrC_FoRWArDS_1/NGS_tools/prioritizer_maxPopAF_gnomAD_intervar.py $phenolist $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.phenolyzer.vcf" 2>> $outdir$ID"_ranking_log"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prioritizer_maxPopAF_gnomAD_MCAP.py $phenolist $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.SnpEff_UCSCAnnot_dbNSFP3.dbNSFP3_gene_cadd"$spid"_ACMG_DDG2P_Mendel_intervar_db_filtered.phenolyzer.vcf" 2>> $outdir$ID"_ranking_log"
 
 # creo dei file rinominati in maniera piu' sintetica da consegnare ai biologi che hanno windows...
 mkdir $outdir"RENAMED"
