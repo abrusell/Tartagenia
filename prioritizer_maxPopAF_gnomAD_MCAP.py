@@ -443,13 +443,13 @@ for vcfline in vcf.readlines():
 		if not "." in all_gnomAD_exomes:
 			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_mcap)+"\t="+found_db+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_go_biol_proc+"\t"+str(max_gnomAD_exomes_AF)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
 			if warn == 1:
-				out.write("\tMultiple gnomAD_exomes/CADD/SVM values\n")
+				out.write("\tMultiple gnomAD_exomes/CADD/M-CAP values\n")
 			else:
 				out.write("\t.\n")
 		else:
 			out.write(vcfline.rstrip()+"\t"+found_var_nt_pos+"\t"+found_var_aa_pos+"\t"+found_maineffect+"\t"+found_genename+"\t"+found_disease_desc+"\t"+found_gene_full_name+"\t"+str(found_cadd)+"\t"+str(found_mcap)+"\t="+found_db+"\t"+str(found_phlyz)+"\t"+str(Final_score)+"\t"+found_intervar+"\t"+found_impact+"\t"+found_feature_id+"\t"+found_ann+"\t"+found_go_biol_proc+"\t"+str(all_gnomAD_exomes)+"\t"+str(found_rvis)+"\t"+str(found_gdi))
 			if warn == 1:
-                                out.write("\tMultiple gnomAD_exomes/CADD/SVM values\n")
+                                out.write("\tMultiple gnomAD_exomes/CADD/M-CAP values\n")
                         else:
                                 out.write("\t.\n")
 
