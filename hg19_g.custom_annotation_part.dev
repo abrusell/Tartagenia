@@ -56,17 +56,17 @@ java -Xmx64g -jar $SNPEFF_HOME"SnpSift.jar" dbnsfp -db $dbNSFP -f Ancestral_alle
 
 # annoto anche gli INDELS con le frequenze di gnomAD_exomes: devo usare WGSA perche' dbNSFP annota solo gli SNP
 # prima devo lasciare solo l'ultima riga dell'header, altrimenti WGSA non funziona
-#grep ^#CHROM $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_header"
-#grep -v ^# $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_body"
-#cat $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf"
-#java -cp /gss/gss_work/DRES_FoRWArDS/WGSA/resources/javaclass/ add_hg19_gnomAD_exomes_commandline $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" true 1 2 4 5 indel "/gss/gss_work/DRES_FoRWArDS/WGSA/resources/gnomAD/" 2>> $outdir$ID"_ANNOT_log"
+grep ^#CHROM $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_header"
+grep -v ^# $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" > $outdir$ID"_WGSA_body"
+cat $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf"
+java -cp /gss/gss_work/DRES_FoRWArDS/WGSA/resources/javaclass/ add_hg19_gnomAD_exomes_commandline $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" true 1 2 4 5 indel "/gss/gss_work/DRES_FoRWArDS/WGSA/resources/gnomAD/" 2>> $outdir$ID"_ANNOT_log"
 
 # annoto l'output di WGSA nel vcf
 # NB nell'header i campi aggiunti da WGSA sono sempre chiamati tipo dbSNFP_gnomAD_AF, anche non sono aggiunti da dbNSFP
-#python /pico/work/IscrC_FoRWArDS_1/NGS_tools/gnomAD_wgsa_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes" 2>> $outdir$ID"_ANNOT_log"
+python /pico/work/IscrC_FoRWArDS_1/NGS_tools/gnomAD_wgsa_annotator.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes" 2>> $outdir$ID"_ANNOT_log"
 
-#mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_gnomAD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf"
-#rm -f $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes"
+mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_gnomAD.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3.vcf"
+rm -f $outdir$ID"_WGSA_header" $outdir$ID"_WGSA_body" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered"$flag".g.SnpEff_UCSCAnnot_dbNSFP3_WGSAfix.vcf.addgnomAD_exomes"
 
 # Annotazione di snpEff con dbscSNV, con -f seleziono i campi da inserire:
 # al momento non funziona, con l'hg38
