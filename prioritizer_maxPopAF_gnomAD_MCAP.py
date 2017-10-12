@@ -26,7 +26,7 @@ with open(phenolist) as f:
 	pheno_terms = f.read().splitlines()
 
 out.write("##Phenolyzer terms used: "+", ".join(pheno_terms)+"\n")
-out.write(header.rstrip()+"\tVar_nt_pos\tVar_aa_pos\tEffect\tgeneName\tDisease_description\tGene_full_name\tCADD_phred\tdbNSFP_MetaSVM_score\tRECURRENCE_IN_OUR_DB\tPhenolyzer_score\tFinal_score\tInterVar\tImpact\tFeature_id\tANN\tGO_biological_process\tdbNSFP_maxPop_AF_gnomAD_exomes_AF\tRVIS_gnomAD_exomes_0.05_percentile\tGDI\tWarning\n")
+out.write(header.rstrip()+"\tVar_nt_pos\tVar_aa_pos\tEffect\tgeneName\tDisease_description\tGene_full_name\tCADD_phred\tdbNSFP_M-CAP_score\tRECURRENCE_IN_OUR_DB\tPhenolyzer_score\tFinal_score\tInterVar\tImpact\tFeature_id\tANN\tGO_biological_process\tdbNSFP_maxPop_AF_gnomAD_exomes_AF\tRVIS_gnomAD_exomes_0.05_percentile\tGDI\tWarning\n")
 
 found_gnomad			= ""
 found_db			= ""
