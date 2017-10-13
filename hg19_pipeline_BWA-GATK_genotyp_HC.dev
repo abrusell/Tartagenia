@@ -991,7 +991,6 @@ if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" ]; then
                         rm -f $outdir$ID"_"$z"_"$j"_aln_"*".ba"*
                         rm -f $outdir$ID"_"$j"_raw_snps.vcf"*
                         rm -f $outdir$ID"_"$j"_raw_snps-indels_HapCall"*".g.vcf"*
-			rm -fr $tmpdir
                 done
         done
 else
