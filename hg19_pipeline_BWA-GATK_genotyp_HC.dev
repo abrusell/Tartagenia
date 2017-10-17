@@ -771,7 +771,7 @@ else
 	        -T VariantFiltration \
 	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
 	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
-	        --filterExpression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+	        --filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
 	        --filterName "HARD_TO_VALIDATE" \
 	        --clusterWindowSize 10 \
 	        --filterExpression "QUAL < 30.0 " \
@@ -785,7 +785,7 @@ else
 	        -T VariantFiltration \
 	        --variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
 	        -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
-	        --filterExpression "QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0" \
+	        --filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
 	        --filterName "HARD_TO_VALIDATE" \
 	        --clusterWindowSize 10 \
 	        --filterExpression "QUAL < 30.0 " \
