@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Sample ID: "
+echo ">Sample ID: "
 read ID
 
 if [ ${#ID} -gt 11 ]
@@ -8,7 +8,7 @@ then
 	shortID=$(echo $ID | cut -c 1-11)
 fi
 
-echo  -e "Select reference: [Type hg19/hg38] (default hg19): \c"
+echo  -e ">Select reference: [Type hg19/hg38] (default hg19): \c"
 read genomeref
 if [ -z "$genomeref" ]
 then
@@ -16,7 +16,7 @@ then
         echo -e $genomeref
 fi
 
-echo -e "number of Cores (default 12): \c"
+echo -e ">number of Cores (default 12): \c"
 read CPU
 if [ -z "$CPU" ]
 then
@@ -24,7 +24,7 @@ then
 	echo -e $CPU
 fi
 
-echo -e "Amount of Memory (default 120Gb): \c"
+echo -e ">Amount of Memory (default 120Gb): \c"
 read RAM
 if [ -z "$RAM" ]
 then
@@ -32,7 +32,7 @@ then
 	echo -e $RAM
 fi
 
-echo -e "Name of the queue (default "parallel"): \c"
+echo -e ">Name of the queue (default "parallel"): \c"
 read QUEUE
 if [ -z "$QUEUE" ]
 then
@@ -54,7 +54,7 @@ echo -e "#PBS -l walltime=100:00:00\n" >> $ID"_Job"
 
 echo -e "umask 0002\n" >> $ID"_Job" 
 
-echo "Fastq Directory: "
+echo ">Fastq Directory: "
 read fastq_di
 fastq_dir=$fastq_di"/"
 if [ ! -d $fastq_dir ]
@@ -65,20 +65,20 @@ fi
 
 echo -e "fastq_dir="$fastq_dir >> $ID"_Job"
 
-echo "How many fastq couples? "
+echo ">How many fastq couples? "
 read fq_couple
 
 echo -e "fq_couple="$fq_couple >> $ID"_Job"
 
 declare -a names=( $(seq 1 $fq_couple) )
 for i in ${names[@]}; do
-        echo "First-pair fastqfile (e.g. _1.fq.gz) of couple "$i
+        echo ">First-pair fastqfile (e.g. _1.fq.gz) of couple "$i
         read fastqname1
 	echo -e "fastq_name_original_1["$i"]="$fastqname1 >> $ID"_Job"
-        echo "Second-pair fastqfile (e.g. _2.fq.gz) of couple "$i
+        echo ">Second-pair fastqfile (e.g. _2.fq.gz) of couple "$i
         read fastqname2
 	echo -e "fastq_name_original_2["$i"]="$fastqname2 >> $ID"_Job"
-	echo "Lane ID for fastq couple "$i
+	echo ">Lane ID for fastq couple "$i
 	read laneid
 	echo -e "lane_id["$i"]="$laneid >> $ID"_Job"
 	fastqlane1[$i]=$fastqname1
@@ -95,15 +95,15 @@ for i in ${names[@]}; do
         fi
 done
 
-echo "Target regions path: "
+echo ">Target regions path: "
 read targetRegChipDir
 while [ ! -d $targetRegChipDir ]; do
 	echo $targetRegChipDir " does not exist!"
-	echo "Target regions path: "
+	echo ">Target regions path: "
 	read targetRegChipDir
 done
 
-echo "Output directory: "
+echo ">Output directory: "
 read outdi
 outdir=$outdi"/"
 if [ ! -d $outdir ]
@@ -112,7 +112,7 @@ then
         exit 1
 fi
 
-echo "Temporary directory: "
+echo ">Temporary directory: "
 read tmpdi
 tmpdir=$tmpdi"/"
 if [ ! -d $tmpdir ]
@@ -121,13 +121,13 @@ then
         exit 1
 fi
 
-echo "Do you need phasing (e.g. if this is a proband sample with parents)? [Type y/n]"
+echo ">Do you need phasing (e.g. if this is a proband sample with parents)? [Type y/n]"
 read phase
 if [ $phase == "y" ]
 then
 	echo -e "spidex="$phase >> $ID"_Job"
 else
-	echo "Do you want splice sites analysis? [Type y/n]"
+	echo ">Do you want splice sites analysis? [Type y/n]"
 	read spid
 	if [ $spid == "y" ]
 	then
@@ -135,30 +135,30 @@ else
 	fi
 fi	
 
-echo "Do you need a multisample vcf file (e.g. if you have a proband with other family members)? [Type y/n]"
+echo ">Do you need a multisample vcf file (e.g. if you have a proband with other family members)? [Type y/n]"
 read family
 
 if [ $family == "y" ]
 then
-        echo "How many other family members?"
+        echo ">How many other family members?"
         read members
 	echo -e "fam_members="$members >> $ID"_Job"
 	declare -a familymemb=( $(seq 1 $members) )
 	for j in ${familymemb[@]}; do
-        	echo "ID (must be the same ID used for Job submissions, ran in the same dir) for member: "$j
+        	echo ">ID (must be the same ID used for Job submissions, ran in the same dir) for member: "$j
         	read membID
         	echo -e "member_name["$j"]="$membID >> $ID"_Job"
 	done
-	echo "Do you have a pedigree file (only trio, for phasing purpose)? [Type y/n]"
+	echo ">Do you have a pedigree file (only trio, for phasing purpose)? [Type y/n]"
 	read pedigree
 	if [ $pedigree == "y" ]
 	then
-		echo "Pedigree file name: "
+		echo ">Pedigree file name: "
 	        read pedfile
         	if [ ! -f $pedfile ]
         	then
                 	echo $pedfile " does not exist!"
-	                echo "Pedigree file name: "
+	                echo ">Pedigree file name: "
         	        read pedfile
                 	if [ ! -f $pedfile ]
                 	then
@@ -169,31 +169,37 @@ then
 	fi
 fi
 
-echo "Do you want also somatic variant calling? [Type y/n]"
+echo ">Do you want also somatic variant calling? [Type y/n]"
 read somatic
 
-echo "Do you want FastQC data pre-processing? [Type y/n]"
+echo ">Do you want FastQC data pre-processing? [Type y/n]"
 read fqc
 
-echo "Do you have Illumina (Q PHRED+64) or Sanger fastq (Q PHRED+33)? [Type i/s]"
+echo ">Do you have Illumina (Q PHRED+64) or Sanger fastq (Q PHRED+33)? [Type i/s]"
 read qscore
 
-echo "Do you want to calculate global coverage? [Type y/n]"
+echo ">Do you want to calculate global coverage? [Type y/n]"
 read coverBedTools
 
-echo "Do you want to calculate HsMetrics? [Type y/n]"
+echo ">Do you want to calculate HsMetrics? [Type y/n]"
 read metrics
 
-echo "Do you want to perform VQSR? [Type y/n]"
+echo ">Do you want to perform VQSR? [Type y/n]"
 read vqsr
+if [ -z "$vqsr" ]
+then
+        vqsr=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
+        echo $vqsr
+fi
+
 if [ $vqsr == "y" ]
         then
-                echo "VCFs filelist name: "
+                echo ">VCFs filelist name: "
 		read vcfsfilelist
 		if [ ! -f $vcfsfilelist ]
                	then
                        	echo $vcfsfilelist " does not exist!"
-                       	echo "VCFS filelist file name: "
+                       	echo ">VCFS filelist file name: "
                        	read vcfsfilelist
                        	if [ ! -f $vcfsfilelist ]
                    	then
@@ -206,15 +212,15 @@ if [ $vqsr == "y" ]
 		# e' il numero massimo che ci possiamo permettere con le nostre risorse attuali
 		# check che esistano tutti i gVCF nella lista
 	        grep -v indels_HC_UG_ $vcfsfilelist | grep -v ISS_VCF | grep -v _prob_ | shuf | head -n 50 > $outdir"gvcf.tmp.list"
-		sed -i 's/_HapCall_genotype_filtered/_HapCall/' $outdir"gvcf.tmp.list"
-        	grep "_HapCall.g.vcf.gz$" $outdir"gvcf.tmp.list" > $outdir"gvcf.list"
-		rm $outdir"gvcf.tmp.list"
+		sed -i 's/_HapCall_genotype_filtered/_HapCall/' $outdir$ID"_gvcf.tmp.list"
+        	grep "_HapCall.g.vcf.gz$" $outdir$ID"_gvcf.tmp.list" > $outdir$ID"_gvcf.list"
+		rm $outdir$ID"_gvcf.tmp.list"
 		while read -r gvcf; do
 			if [[ ! -e "${gvcf}.tbi" ]]; then
         			echo $gvcf "does not exist or it is not bgzipped and tabindexed"
         			exit 1
 			fi
-		done < "${outdir}gvcf.list"
+		done < "${outdir}${ID}_gvcf.list"
 		
 
 fi
