@@ -238,7 +238,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 
 	if [ $VQSR == "y" ]; then
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-		for j in {1_5 6_12 13_24}; do
+		for j in 1_5 6_12 13_24 ; do
                         $java -Xmx40g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
 			-R $reference \
 			-T GenotypeGVCFs \
@@ -544,7 +544,7 @@ else
 
         if [ $VQSR == "y" ]; then
                 echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                for j in {1_5 6_12 13_24}; do
+                for j in 1_5 6_12 13_24 ; do
                         $java -Xmx40g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
 	                -R $reference \
 	                -T GenotypeGVCFs \
