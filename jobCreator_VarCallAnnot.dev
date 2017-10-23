@@ -193,7 +193,7 @@ if [ $vqsr == "y" ]
 		read vcfsfilelist
 		if [ -z "$vcfsfilelist" ]
 		then
-        		vqsr=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
+        		vcfsfilelist=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
         		echo -e $vcfsfilelist
 		fi
 		if [ ! -f $vcfsfilelist ]
@@ -203,7 +203,7 @@ if [ $vqsr == "y" ]
                        	read vcfsfilelist
 			if [ -z "$vcfsfilelist" ]
 			then
-        			vqsr=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
+        			vcfsfilelist=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
         			echo -e $vcfsfilelist
 			fi
                        	if [ ! -f $vcfsfilelist ]
