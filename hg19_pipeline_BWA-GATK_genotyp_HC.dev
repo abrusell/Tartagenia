@@ -235,15 +235,15 @@ if [ ${#member_name[@]} -eq 0 ]; then
 	# Ho provato la parallelizzazione su singolo chr, con risultati negativi
 	# evidentemente necessita di molta RAM per singolo processo e durante la parallelizzazione
 	# diventa il fattore limitante
-
+	# il primo step lo facciamo con GATK3.6 perche' il 3.7 ha problemi di multithread con nt
 	if [ $VQSR == "y" ]; then
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar /pico/work/IscrC_FoRWArDS_1/NGS_tools/GenomeAnalysisTK-3.6/GenomeAnalysisTK.jar \
 		-nt 12 \
 		-R $reference \
 		-T GenotypeGVCFs \
 		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
-		--variant $outdir"gvcf.list" \
+		--variant $outdir$ID"_gvcf.list" \
 		-L $targetRegChipDir"/allchrs.bed" \
 		-A Coverage \
 		-A FisherStrand \
@@ -528,10 +528,10 @@ else
         # Genotypes any number of gVCF files that were produced by the HaplotypeCaller
         # and from previously analyzed samples (to VQSR)
         # into a single joint VCF file.
-
+	# il primo step lo facciamo con GATK3.6 perche' il 3.7 ha problemi di multithread con nt
         if [ $VQSR == "y" ]; then
                 echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar /pico/work/IscrC_FoRWArDS_1/NGS_tools/GenomeAnalysisTK-3.6/GenomeAnalysisTK.jar \
 	        -nt 12 \
 		-R $reference \
 	        -T GenotypeGVCFs \
