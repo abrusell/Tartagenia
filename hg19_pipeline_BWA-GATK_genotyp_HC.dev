@@ -238,8 +238,8 @@ if [ ${#member_name[@]} -eq 0 ]; then
 
 	if [ $VQSR == "y" ]; then
 		echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx30g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-		-nt 4 \
+                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+		-nt 12 \
 		-R $reference \
 		-T GenotypeGVCFs \
 		--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
@@ -531,8 +531,8 @@ else
 
         if [ $VQSR == "y" ]; then
                 echo "GATK join gvcf genotyping and filtering" >> $outdir$ID"_Job_Time.log"
-                $java -Xmx30g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
-	        -nt 4 \
+                $java -Xmx10g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	        -nt 12 \
 		-R $reference \
 	        -T GenotypeGVCFs \
 	        --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
