@@ -216,7 +216,7 @@ if [ $vqsr == "y" ]
 		# extract 50 random (excluding the oldest ones) g.vcf files from vcfFilelist
 		# e' il numero massimo che ci possiamo permettere con le nostre risorse attuali
 		# check che esistano tutti i gVCF nella lista
-	        grep -v indels_HC_UG_ $vcfsfilelist | grep -v ISS_VCF | grep -v _prob_ | shuf | head -n 50 > $outdir$ID"gvcf.tmp.list"
+	        grep -v indels_HC_UG_ $vcfsfilelist | grep -v ISS_VCF | grep -v _prob_ | shuf | head -n 50 > $outdir$ID"_gvcf.tmp.list"
 		sed -i 's/_HapCall_genotype_filtered/_HapCall/' $outdir$ID"_gvcf.tmp.list"
         	grep "_HapCall.g.vcf.gz$" $outdir$ID"_gvcf.tmp.list" > $outdir$ID"_gvcf.list"
 		rm $outdir$ID"_gvcf.tmp.list"
