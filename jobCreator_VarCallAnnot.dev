@@ -189,22 +189,22 @@ read vqsr
 
 if [ $vqsr == "y" ]
         then
-                echo ">VCFs filelist name: (default "/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist"): \c"
+                echo -e ">VCFs filelist name: (default "/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist"): \c"
 		read vcfsfilelist
 		if [ -z "$vcfsfilelist" ]
 		then
         		vqsr=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
-        		echo $vqsr
+        		echo -e $vcfsfilelist
 		fi
 		if [ ! -f $vcfsfilelist ]
                	then
                        	echo $vcfsfilelist " does not exist!"
-                       	echo ">VCFS filelist file name: "
+                       	echo -e ">VCFS filelist file name: (default "/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist"): \c"
                        	read vcfsfilelist
 			if [ -z "$vcfsfilelist" ]
 			then
         			vqsr=/pico/work/IscrC_FoRWArDS_1/NGS_tools/vcfFilelist
-        			echo $vqsr
+        			echo -e $vcfsfilelist
 			fi
                        	if [ ! -f $vcfsfilelist ]
                    	then
