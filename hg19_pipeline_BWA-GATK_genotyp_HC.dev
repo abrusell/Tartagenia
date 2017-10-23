@@ -537,7 +537,7 @@ else
 	        -T GenotypeGVCFs \
 	        --variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
 	        $(for y in ${member_name[@]}; do echo "--variant "$outdir$y"_raw_snps-indels_HapCall.g.vcf.gz"; done) \
-		--variant $outdir"gvcf.list" \
+		--variant $outdir$ID"_gvcf.list" \
 		-L $targetRegChipDir"/allchrs.bed" \
 	        -A Coverage \
 	        -A FisherStrand \
