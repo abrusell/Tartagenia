@@ -300,7 +300,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
 		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
 		-resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
-		-resource:dbsnp137,known=true,training=false,truth=false,prior=2 $dbSNP_file \
+		-resource:dbsnp,known=true,training=false,truth=false,prior=2 $dbSNP_file \
 		--maxGaussians 4 -mode INDEL \
 		-rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
@@ -595,7 +595,7 @@ else
                 -an FS -an ReadPosRankSum -an InbreedingCoeff -an MQRankSum -an QD \
 		-resource:mills,known=false,training=true,truth=true,prior=12 $knownInd_2 \
                 -resource:axiomPoly,known=false,training=true,truth=false,prior=10 $axiomPoly \
-                -resource:dbsnp137,known=true,training=false,truth=false,prior=2 $dbSNP_file \
+                -resource:dbsnp,known=true,training=false,truth=false,prior=2 $dbSNP_file \
                 --maxGaussians 4 -mode INDEL \
                 -rscriptFile $outdir$ID"_indels.VQSR.recalibration_plots.rscript" \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
