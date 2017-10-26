@@ -182,6 +182,9 @@ for j in {1..24}; do
 done
 wait
 
+time8bis=$( date "+%s" )
+echo [elapsed time] $((($time8bis - $time8)/60)) min >> $outdir$ID"_Job_Time.log"
+
 # HaplotypeCaller
 # chiamo le varianti in un GVCF
 echo "GATK HC variants calling" >> $outdir$ID"_Job_Time.log"
@@ -835,6 +838,7 @@ fi
 
 if [ $somatic == "y" ]; then
 
+	echo "Calling somatic variants with muTect2" >> $outdir$ID"_Job_Time.log"
         # MuTect2 variant calling with single sample
         for j in {1..24}; do
                 $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
@@ -867,12 +871,10 @@ if [ $somatic == "y" ]; then
                 python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" $ID $outdir
                 qsub $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
         fi
+	time12bis=$( date "+%s" )
+	echo [elapsed time] $((($time12bis - $time12)/60)) min >> $outdir$ID"_Job_Time.log"
 
 fi
-
-time12bis=$( date "+%s" )
-echo [elapsed time] $((($time12bis - $time12)/60)) min >> $outdir$ID"_Job_Time.log"
-
 
 echo "Variant Calls Files are ready. Samtools is merging and indexing final bam files" >> $outdir$ID"_Job_Time.log"
 
