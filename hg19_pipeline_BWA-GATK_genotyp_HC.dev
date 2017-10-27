@@ -949,7 +949,7 @@ gzip -f $outdir$ID"_mendeliome_bga_trimmed_lowcov.bedGraph" $outdir$ID"_mendelio
 rm -f $outdir$ID"_mendeliome_bga.bedGraph" $outdir$ID"_mendeliome_bga_0.bedGraph" $outdir$ID"_mendeliome_bga_trimmed.bedGraph"  $outdir$ID"_mendeliome_bga_0_refid_70.txt"
 #Calcolo il coverage su tutto il medelioma con coverageBed -hist
 /cineca/prod/applications/bedtools/2.24/gnu--4.8.3/bin/bedtools coverage -b $outdir$ID"_aln_sort_nodup_recalc_final_mendeliome.bam" -a $mendeliome -hist > $outdir$ID"_mendeliome_global_coverage" 2>> $outdir$ID"_mendeliome_bedtools_log"
-grep ^all $outdir$ID"_mendeliome_global_coverage" > $outdir$ID"_mendeliome_global_coverage_hist"
+grep ^all $outdir$ID"_mendeliome_global_coverage" > $outdir$ID"_mendeliome_hist"
 rm -f $outdir$ID"_mendeliome_global_coverage"
 
 time16=$( date "+%s" )
