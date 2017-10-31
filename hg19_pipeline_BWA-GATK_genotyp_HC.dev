@@ -361,6 +361,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
 		-sn $ID \
 		-env \
+		--removeUnusedAlternates \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
 		$java -Xmx60g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
@@ -370,6 +371,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
                 -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
                 -sn $ID \
 		-env \
+		--removeUnusedAlternates \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 		
 		# unifico i due vcf
@@ -656,6 +658,7 @@ else
                 -sn $ID \
                 $(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
 		-env \
+		--removeUnusedAlternates \
 		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
                 $java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
@@ -664,6 +667,7 @@ else
                 -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
                 -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
                 -sn $ID \
+		--removeUnusedAlternates \
 		$(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
 		-env \
                 >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
