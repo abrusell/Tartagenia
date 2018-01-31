@@ -40,17 +40,14 @@ then
 	echo $QUEUE
 fi
 
-echo -e "#!/bin/bash\n" > $ID"_Job" 
-echo -e "#PBS -l select=1:ncpus="$CPU":mem="$RAM"GB" >> $ID"_Job"
-if [ ! -z $shortID ]; then
-	echo -e "#PBS -N "$shortID >> $ID"_Job"
-else
-	echo -e "#PBS -N "$ID"_Job" >> $ID"_Job"
-fi
-echo -e "#PBS -W group_list="$PICO_ACCOUNT >> $ID"_Job"
-echo -e "#PBS -A "$PICO_ACCOUNT >> $ID"_Job"
-echo -e "#PBS -q "$QUEUE >> $ID"_Job"
-echo -e "#PBS -l walltime=100:00:00\n" >> $ID"_Job"
+echo -e "#!/bin/bash\n"				 > $ID"_Job" 
+echo -e "#SBATCH -N 1 -n "$CPU" --mem "$RAM"GB" >> $ID"_Job"
+echo -e "#SBATCH -J "$shortID			>> $ID"_Job"
+echo -e "#SBATCH -A "$ACCOUNT			>> $ID"_Job"
+echo -e "#SBATCH --time 100:00:00"		>> $ID"_Job"
+echo -e "#SBATCH --error %j.%x.err"		>> $ID"_Job"
+echo -e "#SBATCH --output %j.%x.err"		>> $ID"_Job"
+echo -e "#SBATCH --partition bdw_usr_prod\n"	>> $ID"_Job"
 
 echo -e "umask 0002\n" >> $ID"_Job" 
 
@@ -267,25 +264,22 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3.1/hg19_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3.1/hg38_pipeline_BWA-GATK_genotyp_HC.dev" >> $ID"_Job"
 fi
 
 mv -f $ID"_Job" $outdir
 
-echo -e "#!/bin/bash" >> $ID"_annot_Job"
-echo -e "#PBS -l select=1:ncpus=6:mem=64GB" >> $ID"_annot_Job"
-if [ ! -z $shortID ]; then
-        echo -e "#PBS -N "$shortID"_ann" >> $ID"_annot_Job"
-else
-        echo -e "#PBS -N "$ID"_ann" >> $ID"_annot_Job"
-fi
-#echo -e "#PBS -N "$ID"_ann" >> $ID"_annot_Job"
-echo -e "#PBS -W group_list="$PICO_ACCOUNT >> $ID"_annot_Job"
-echo -e "#PBS -A "$PICO_ACCOUNT >> $ID"_annot_Job"
-echo -e "#PBS -q parallel" >> $ID"_annot_Job"
-echo -e "#PBS -l walltime=12:00:00" >> $ID"_annot_Job"
+echo -e "#!/bin/bash\n" 			 > $ID"_annot_Job"
+echo -e "#SBATCH -N 1 -n 6 --mem 120GB"		>> $ID"_annot_Job"
+echo -e "#SBATCH -J "$shortID"_ann"		>> $ID"_annot_Job"
+echo -e "#SBATCH -A "$ACCOUNT			>> $ID"_annot_Job"
+echo -e "#SBATCH --time 12:00:00"		>> $ID"_annot_Job"
+echo -e "#SBATCH --error %j.%x.err"		>> $ID"_annot_Job"
+echo -e "#SBATCH --output %j.%x.err"		>> $ID"_annot_Job"
+echo -e "#SBATCH --partition bdw_usr_prod\n"	>> $ID"_annot_Job"
+
 echo -e "\numask 0002\n" >> $ID"_annot_Job"
 echo -e "## definizione delle variabili di input" >> $ID"_annot_Job"
 echo -e "ID="$ID >> $ID"_annot_Job"
@@ -302,9 +296,9 @@ fi
 
 if [ $genomeref == "hg19" ]
 then
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3.1/hg19_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 else
-        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
+        cat "/pico/work/IscrC_FoRWArDS_1/NGS_tools/Pipeline/Tartagenia/v3.1/hg38_g.custom_annotation_part.dev" >> $ID"_annot_Job"
 fi
 
 mv -f $ID"_annot_Job" $outdir
@@ -313,8 +307,8 @@ fq=$(grep 'fastq_name_original_1\[1\]' "$outdir$ID"_Job | head -n1 | cut -c 26-)
 
 if [ $genomeref == "hg19" ]
 then
-        echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
+        echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation: sbatch "$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
 else
-	echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample_hg38.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation qsub:\n\t"$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
+	echo -e "\nTo add variants to in-house DB, on pico.cineca.it run:\n\t/pico/work/IscrC_FoRWArDS_1/NGS_tools/add_2_varDB_multisample_hg38.sh "$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz "$ID $fq" + output directory\n\nFor the annotation: sbatch "$outdir$ID"_annot_Job\n" > $outdir$ID"_custom_annotation.INFO"
 fi
-echo -e "\n  qsub this file: "$outdir$ID"_Job\n\n  instructions for the annotation of the final vcf can be found in "$outdir$ID"_custom_annotation.INFO\n"
+echo -e "\n  sbatch this file: "$outdir$ID"_Job\n\n  instructions for the annotation of the final vcf can be found in "$outdir$ID"_custom_annotation.INFO\n"

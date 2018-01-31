@@ -1,0 +1,649 @@
+bwakit=/pico/home/userexternal/abrusell/bwa.kit-0.7.12/
+GATK_HOME=/pico/work/IscrC_FoRWArDS_1/NGS_tools/GenomeAnalysisTK-3.7/
+PICARD_HOME=/cineca/prod/applications/picard/2.3.0/binary/bin/
+java=/cineca/prod/compilers/jre/1.8.0_73/none/bin/java
+
+# definizione delle variabili di input
+reference=/pico/work/IscrC_FoRWArDS_1/db/reference/ucsc.hg19.fasta
+ref_dict=${reference%%.fasta}.dict
+dbSNP_file=/pico/work/IscrC_FoRWArDS_1/db/snp/dbsnp_150_hg19.vcf.gz
+cosmic=/pico/work/IscrC_FoRWArDS_1/db/cosmic/CosmicCodingNonCodingVariantsV76_fixed.vcf.gz
+onethous_genomes=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_omni2.5.hg19.vcf.gz
+knownSNPs=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.snps.high_confidence.hg19.sites.vcf.gz
+hapmap=/pico/work/IscrC_FoRWArDS_1/db/snp/hapmap_3.3.hg19.vcf.gz
+knownInd_1=/pico/work/IscrC_FoRWArDS_1/db/snp/1000G_phase1.indels.hg19.vcf.gz
+knownInd_2=/pico/work/IscrC_FoRWArDS_1/db/snp/Mills_and_1000G_gold_standard.indels.hg19.vcf.gz
+axiomPoly=/pico/work/IscrC_FoRWArDS_1/db/snp/Axiom_Exome_Plus.genotypes.all_populations.poly.vcf.gz
+mendeliome=/pico/work/IscrC_FoRWArDS_1/db/refGene/2016/Mendeliome+ACMG+DDG2P_refGene_exons50_sorted.bed
+bedtools=/pico/home/userexternal/abrusell/bedtools2/bin/
+genomefile=/gpfs/work/IscrC_FoRWArDS_1/db/reference/bedtools.genomefile.hg19
+
+# Beware that $variable in such sed expression would be taken as a regular expression and so any special characters 
+# that the variable contains, such as / or . would have to be escaped.
+escaped_id=$(printf '%s\n' "$ID" | sed 's:[][\/.^$*&]:\\&:g')
+
+
+
+time1=$( date "+%s" )
+date >> $outdir$ID"_muTect2_Job_Time.log"
+
+if [ $fqc == "y" ]
+then
+        echo "Fastqc: analyzing fastq files" >> $outdir$ID"_muTect2_Job_Time.log"
+        fastqc -t 2 $ctrl_fastq_dir$ID"_ctrl_all_fq_reads_1.fq.gz" $ctrl_fastq_dir$ID"_ctrl_all_fq_reads_2.fq.gz" -o $outdir 2> $outdir$ID"_ctrl_fastQC_log" &
+        fastqc -t 2 $tum_fastq_dir$ID"_tum_all_fq_reads_1.fq.gz" $tum_fastq_dir$ID"_tum_all_fq_reads_2.fq.gz" -o $outdir 2> $outdir$ID"_tum_fastQC_log"
+        time2=$( date "+%s" )
+        echo [elapsed time] $((($time2 - $time1)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+fi
+
+rm -f $outdir$ID"_all_fq_reads_1.fq.gz" $outdir$ID"_all_fq_reads_2.fq.gz"
+
+time2=$( date "+%s" )
+
+if [ $qscore == "i" ]
+then
+	#nel caso di qscore illumina converto i fq in sanger con seqtk
+        echo "Converting Illumina scores to Sanger - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+	for i in $(seq 1 $ctrl_fq_couple); do
+		$bwakit"seqtk" seq -Q64 -V $ctrl_fastq_dir${ctrl_fastq_name_original_1[$i]} | gzip > $outdir${ctrl_fastq_name_original_1[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+        	$bwakit"seqtk" seq -Q64 -V  $ctrl_fastq_dir${ctrl_fastq_name_original_2[$i]} | gzip > $outdir${ctrl_fastq_name_original_2[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+	done
+	wait
+	time2bis=$( date "+%s" )
+        echo [elapsed time] $((($time2bis - $time2)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+        echo "Converting Illumina scores to Sanger - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+	for i in $(seq 1 $tum_fq_couple); do
+		$bwakit"seqtk" seq -Q64 -V $tum_fastq_dir${tum_fastq_name_original_1[$i]} | gzip > $outdir${tum_fastq_name_original_1[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+        	$bwakit"seqtk" seq -Q64 -V  $tum_fastq_dir${tum_fastq_name_original_2[$i]} | gzip > $outdir${tum_fastq_name_original_2[$i]}"_converted" 2>>$outdir$ID"_seqkt_log" &
+	done
+        wait
+
+	time2ter=$( date "+%s" )
+        echo [elapsed time] $((($time2ter - $time2bis)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+	time2=$time2ter
+        
+	for i in $(seq 1 $ctrl_fq_couple); do
+		ln -s  $outdir${ctrl_fastq_name_original_1[$i]}"_converted" $outdir${ctrl_fastq_name_original_1[$i]}
+		ln -s  $outdir${ctrl_fastq_name_original_2[$i]}"_converted" $outdir${ctrl_fastq_name_original_2[$i]}
+	done
+
+	for i in $(seq 1 $tum_fq_couple); do
+		ln -s  $outdir${tum_fastq_name_original_1[$i]}"_converted" $outdir${tum_fastq_name_original_1[$i]}
+		ln -s  $outdir${tum_fastq_name_original_2[$i]}"_converted" $outdir${tum_fastq_name_original_2[$i]}
+	done
+else
+	for i in $(seq 1 $ctrl_fq_couple); do
+		ln -s $ctrl_fastq_dir${ctrl_fastq_name_original_1[$i]} $outdir
+		ln -s $ctrl_fastq_dir${ctrl_fastq_name_original_2[$i]} $outdir
+	done
+	for i in $(seq 1 $tum_fq_couple); do
+		ln -s $tum_fastq_dir${tum_fastq_name_original_1[$i]} $outdir
+		ln -s $tum_fastq_dir${tum_fastq_name_original_2[$i]} $outdir
+	done
+fi
+	
+echo "Mapping reads to reference with bwa mem (bwakit), removing duplicated reads (samblaster), sorting and indexing (samtools): - ctrl:" >> $outdir$ID"_muTect2_Job_Time.log"
+for i in $(seq 1 $ctrl_fq_couple); do
+	$bwakit"seqtk" mergepe $outdir${ctrl_fastq_name_original_1[$i]} $outdir${ctrl_fastq_name_original_2[$i]} | $bwakit"bwa" mem -p -t 20 -R"@RG\tID:"${ctrl_lane_id[$i]}"\tLB:"$ID"\tSM:"$ID"\tPU:"${ctrl_lane_id[$i]}"\tPL:ILLUMINA" $reference - 2> $outdir$ID"_"${ctrl_lane_id[$i]}"_aln.log.bwamem" | $bwakit"samblaster" -r 2> $outdir$ID"_"${ctrl_lane_id[$i]}"_aln.log.dedup" | $bwakit"samtools" sort -@ 20 -m5G - $outdir$ID"_"${ctrl_lane_id[$i]}"_aln_sort_nodup" ; $bwakit"samtools" index $outdir$ID"_"${ctrl_lane_id[$i]}"_aln_sort_nodup.bam" 2>> $outdir$ID"_"${ctrl_lane_id[$i]}"_bwakit_log" &
+done
+wait
+time3=$( date "+%s" )
+echo [elapsed time] $((($time3 - $time2)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+echo "Mapping reads to reference with bwa mem (bwakit), removing duplicated reads (samblaster), sorting and indexing (samtools): - tum:" >> $outdir$ID"_muTect2_Job_Time.log"
+for i in $(seq 1 $tum_fq_couple); do
+	$bwakit"seqtk" mergepe $outdir${tum_fastq_name_original_1[$i]} $outdir${tum_fastq_name_original_2[$i]} | $bwakit"bwa" mem -p -t 20 -R"@RG\tID:"${tum_lane_id[$i]}"_tum\tLB:"$ID"_tum\tSM:"$ID"_tum\tPU:"${tum_lane_id[$i]}"\tPL:ILLUMINA" $reference - 2> $outdir$ID"_tum_"${tum_lane_id[$i]}"_aln.log.bwamem" | $bwakit"samblaster" -r 2> $outdir$ID"_tum_"${tum_lane_id[$i]}"_aln.log.dedup" | $bwakit"samtools" sort -@ 20 -m5G - $outdir$ID"_tum_"${tum_lane_id[$i]}"_aln_sort_nodup" ; $bwakit"samtools" index $outdir$ID"_tum_"${tum_lane_id[$i]}"_aln_sort_nodup.bam" 2>> $outdir$ID"_tum_"${tum_lane_id[$i]}"_bwakit_log" &
+done
+wait
+
+time3bis=$( date "+%s" )
+echo [elapsed time] $((($time3bis - $time3)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+# base quality score recalibration: per-sample!
+# count covariates. This step creates a .grp file which is needed for the next
+# step and requires a dbSNP file.
+echo "Base quality score recalibration: creating .grp files - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx8g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-nct 8 \
+-T BaseRecalibrator \
+-L $targetRegChipDir"/allchrs.bed" \
+--interval_padding 150 \
+-R $reference \
+-knownSites:dbsnp,VCF $dbSNP_file \
+-knownSites:dbsnp,VCF $knownInd_2 \
+$(for i in $(seq 1 $ctrl_fq_couple); do echo "-I "$outdir$ID"_"${ctrl_lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+-cov ReadGroupCovariate \
+-cov QualityScoreCovariate \
+-cov CycleCovariate \
+-cov ContextCovariate \
+-o $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+time4=$( date "+%s" )
+echo [elapsed time] $((($time4 - $time3bis)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+echo "Base quality score recalibration: creating .grp files - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx8g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-nct 8 \
+-T BaseRecalibrator \
+-L $targetRegChipDir"/allchrs.bed" \
+--interval_padding 150 \
+-R $reference \
+-knownSites:dbsnp,VCF $dbSNP_file \
+-knownSites:dbsnp,VCF $knownInd_2 \
+$(for i in $(seq 1 $tum_fq_couple); do echo "-I "$outdir$ID"_tum_"${tum_lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+-cov ReadGroupCovariate \
+-cov QualityScoreCovariate \
+-cov CycleCovariate \
+-cov ContextCovariate \
+-o $outdir$ID"_tum_aln_sort_nodup_recalc_data.grp" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+time5=$( date "+%s" )
+echo [elapsed time] $((($time5 - $time4)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+echo "Base quality score recalibration: applying recalibration - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..22} X Y; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 4 \
+	-L chr$j \
+        -T PrintReads \
+        -R $reference \
+        $(for i in $(seq 1 $ctrl_fq_couple); do echo "-I "$outdir$ID"_"${ctrl_lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+        -o $outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
+        -BQSR $outdir$ID"_aln_sort_nodup_recalc_data.grp" \
+        -baq RECALCULATE \
+        >> $outdir$ID"_ctrl_"$j"_GATK_log" 2>> $outdir$ID"_ctrl_"$j"_GATK_log" &
+done
+wait
+
+mv $outdir$ID"_X_aln_sort_nodup_recalc.bam" $outdir$ID"_23_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_X_aln_sort_nodup_recalc.bai" $outdir$ID"_23_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_ctrl_X_GATK_log" $outdir$ID"_ctrl_23_GATK_log"
+mv $outdir$ID"_Y_aln_sort_nodup_recalc.bam" $outdir$ID"_24_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_Y_aln_sort_nodup_recalc.bai" $outdir$ID"_24_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_ctrl_Y_GATK_log" $outdir$ID"_ctrl_24_GATK_log"
+
+time6=$( date "+%s" )
+echo [elapsed time] $((($time6 - $time5)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+echo "Base quality score recalibration: applying recalibration - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..22} X Y; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 4 \
+	-L chr$j \
+        -T PrintReads \
+        -R $reference \
+        $(for i in $(seq 1 $tum_fq_couple); do echo "-I "$outdir$ID"_tum_"${tum_lane_id[$i]}"_aln_sort_nodup.bam"; done) \
+        -o $outdir$ID"_tum_"$j"_aln_sort_nodup_recalc.bam" \
+        -BQSR $outdir$ID"_tum_aln_sort_nodup_recalc_data.grp" \
+        -baq RECALCULATE \
+        >> $outdir$ID"_tum_"$j"_GATK_log" 2>> $outdir$ID"_tum_"$j"_GATK_log" &
+done
+wait
+
+mv $outdir$ID"_tum_X_aln_sort_nodup_recalc.bam" $outdir$ID"_tum_23_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_tum_X_aln_sort_nodup_recalc.bai" $outdir$ID"_tum_23_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_tum_X_GATK_log" $outdir$ID"_tum_23_GATK_log"
+mv $outdir$ID"_tum_Y_aln_sort_nodup_recalc.bam" $outdir$ID"_tum_24_aln_sort_nodup_recalc.bam"
+mv $outdir$ID"_tum_Y_aln_sort_nodup_recalc.bai" $outdir$ID"_tum_24_aln_sort_nodup_recalc.bai"
+mv $outdir$ID"_tum_Y_GATK_log" $outdir$ID"_tum_24_GATK_log"
+
+time7=$( date "+%s" )
+echo [elapsed time] $((($time7 - $time6)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+
+# Lascio il bam splittato a livello di chrom per la chiamata delle varianti, 
+# altrimenti aumento troppo i tempi di esecuzione.
+# Effettuo il merge solo per la rimozione definitiva dei duplicati (oltre a quelli ottici
+# che si tolgono gia' per lane), che devono essere sullo stesso chr, per definizione
+# non faccio il realignment, per questioni di tempo vs vantaggio (Realigning per-sample means 
+# that you will have consistent alignments across all lanes within a sample)
+echo "Removing duplicates from sample-level BAM files - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..24}; do
+	$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MarkDuplicates \
+	I=$outdir$ID"_"$j"_aln_sort_nodup_recalc.bam" \
+	O=$outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+	M=$outdir$ID"_"$j"_aln_sort_metrics_sample.txt" \
+	CREATE_INDEX=TRUE \
+	AS=TRUE \
+	VALIDATION_STRINGENCY=LENIENT \
+	REMOVE_DUPLICATES=TRUE \
+	>> $outdir$ID"_ctrl_"$j"_GATK_log" 2>> $outdir$ID"_ctrl_"$j"_GATK_log" &
+done
+wait
+
+time8=$( date "+%s" )
+echo [elapsed time] $((($time8 - $time7)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+echo "Removing duplicates from sample-level BAM files - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..24}; do
+	$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" MarkDuplicates \
+	I=$outdir$ID"_tum_"$j"_aln_sort_nodup_recalc.bam" \
+	O=$outdir$ID"_tum_"$j"_aln_sort_nodup_recalc_final.bam" \
+	M=$outdir$ID"_tum_"$j"_aln_sort_metrics_sample.txt" \
+	CREATE_INDEX=TRUE \
+	AS=TRUE \
+	VALIDATION_STRINGENCY=LENIENT \
+	REMOVE_DUPLICATES=TRUE \
+	>> $outdir$ID"_tum_"$j"_GATK_log" 2>> $outdir$ID"_tum_"$j"_GATK_log" &
+done
+wait
+
+time8bis=$( date "+%s" )
+echo [elapsed time] $((($time8bis - $time8)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+
+# chiamata delle varianti somatiche con MuTect2
+echo "Calling somatic variants with muTect2"  >> $outdir$ID"_muTect2_Job_Time.log"
+for i in {1..24}; do
+	$java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+	-nct 8 \
+	-T MuTect2 \
+	-R $reference \
+	-I:tumor $outdir$ID"_tum_"$i"_aln_sort_nodup_recalc_final.bam" \
+	-I:normal $outdir$ID"_"$i"_aln_sort_nodup_recalc_final.bam" \
+        --cosmic $cosmic \
+        --dbsnp $dbSNP_file \
+	-L $targetRegChipDir"/"$i".bed" \
+	--interval_padding 150 \
+	-o $outdir$ID"_"$i"_muTect2_raw_snps-indels.vcf.gz" \
+	-A DepthPerAlleleBySample -A BaseQualitySumPerAlleleBySample \
+	>> $outdir$ID"_"$i"_muTect2_log" 2>> $outdir$ID"_"$i"_muTect2_log" &
+done
+wait
+
+for i in {1..24}; do
+	cat $outdir$ID"_"$i"_muTect2_log" >> $outdir$ID"_muTect2_log"
+        rm -f $outdir$ID"_"$i"_muTect2_log"
+done
+
+echo "merging muTect2 vcf files " >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp  $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for i in {1..24}; do echo "-V "$outdir$ID"_"$i"_muTect2_raw_snps-indels.vcf.gz"; done) -out $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" -assumeSorted >> $outdir$ID"_muTect2_log" 2>> $outdir$ID"_muTect2_log"
+
+
+time8ter=$( date "+%s" )
+echo [elapsed time] $((($time8ter - $time8bis)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+if [ -s $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" ]; then
+        for j in {1..24}; do
+                rm -f $outdir$ID"_"$j"_muTect2_raw_snps-indels.vcf"*
+        done
+else
+        echo -e "muTect2 single chr files have not been merged\nThere must be some issue with $ID"_muTect2_raw_snps-indels.vcf.gz" file!\n" >> $outdir$ID"_muTect2_Job_Time.log"
+	exit 1
+
+fi
+
+echo -e "muTect2 Calls file is ready\n" >> $outdir$ID"_muTect2_Job_Time.log"
+
+if [ $spidex == "y" ]
+	then
+	#Creiamo il Job per l'annotazione con SPIDEX per muTect2
+	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex_all_slurm.py $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" $outdir
+	sbatch $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
+fi
+
+time9=$( date "+%s" )
+echo [elapsed time] $((($time9 - $time8ter)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+
+#Chiamata delle varianti germinali
+# HaplotypeCaller
+# chiamo le varianti in un GVCF
+echo "GATK HC variants calling - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..24}; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 8 \
+        -T HaplotypeCaller \
+        -R $reference \
+        -I $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam" \
+        --emitRefConfidence GVCF \
+        --variant_index_type LINEAR \
+        --variant_index_parameter 128000 \
+        -stand_call_conf 50.0 \
+        -L $targetRegChipDir"/"$j".bed" \
+        --interval_padding 150 \
+	-o $outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf.gz" \
+        -A Coverage \
+        -A FisherStrand \
+        -A BaseQualityRankSumTest \
+        -A HaplotypeScore -A InbreedingCoeff \
+        -A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+        -A RMSMappingQuality -A ReadPosRankSumTest -A SpanningDeletions \
+        >> $outdir$ID"_ctrl_"$j"_GATK_log" 2>> $outdir$ID"_ctrl_"$j"_GATK_log" &
+done
+wait
+
+time10=$( date "+%s" )
+echo [elapsed time] $((($time10 - $time9)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+for j in {1..24}; do
+	cat $outdir$ID"_ctrl_"$j"_GATK_log" >> $outdir$ID"_ctrl_GATK_log"
+	rm -f $outdir$ID"_ctrl_"$j"_GATK_log"
+done
+
+echo "merging, filtering and phasing HC vcf files - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall.g.vcf.gz"; done) -out $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" -assumeSorted >> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+time11=$( date "+%s" )
+echo [elapsed time] $((($time11 - $time10)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+# Genotypes any number of gVCF files that were produced by the HaplotypeCaller
+# into a single joint VCF file.
+echo "GATK gvcf genotyping and filtering - ctrl" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T GenotypeGVCFs \
+--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+-A Coverage \
+-A FisherStrand \
+-A BaseQualityRankSumTest \
+-A HaplotypeScore -A InbreedingCoeff \
+-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+-A RMSMappingQuality -A ReadPosRankSumTest \
+-o $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+# filtro delle varianti
+# prima separo SNPs e indels
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-T SelectVariants \
+-R $reference \
+-V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+-selectType SNP \
+-o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-T SelectVariants \
+-R $reference \
+-V $outdir$ID"_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+-selectType INDEL \
+-o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+# poi filtro
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T VariantFiltration \
+--variant $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+-o $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+--filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+--filterName "HARD_TO_VALIDATE" \
+--clusterWindowSize 10 \
+--filterExpression "QUAL < 30.0 " \
+--filterName "VeryLowQual" \
+--filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+--filterName "LowQual" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T VariantFiltration \
+--variant $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+-o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+--filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
+--filterName "HARD_TO_VALIDATE" \
+--clusterWindowSize 10 \
+--filterExpression "QUAL < 30.0 " \
+--filterName "VeryLowQual" \
+--filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+--filterName "LowQual" \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+# rimetto insieme i 2 VCF
+# questo workaround e' necessario
+# perche' combineVariants crea problemi con le varianti separate nei due file, snp e indels
+# quindi lo posso usare sono nel caso di VQSR
+gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"
+gunzip $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
+-R $reference \
+-V $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+-V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+-out $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+# devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+# se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
+$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf \
+I=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
+O=$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict \
+>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+# se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+rm -f $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+# rinomino come il file iniziale
+mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+
+time12=$( date "+%s" )
+echo [elapsed time] $((($time12 - $time11)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+echo "GATK HC variants calling - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+for j in {1..24}; do
+        $java -Xmx4g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+        -nct 8 \
+        -T HaplotypeCaller \
+        -R $reference \
+        -I $outdir$ID"_tum_"$j"_aln_sort_nodup_recalc_final.bam" \
+        --emitRefConfidence GVCF \
+        --variant_index_type LINEAR \
+        --variant_index_parameter 128000 \
+        -stand_call_conf 50.0 \
+        -L $targetRegChipDir"/"$j".bed" \
+        --interval_padding 150 \
+        -o $outdir$ID"_tum_"$j"_raw_snps-indels_HapCall.g.vcf.gz" \
+        -A Coverage \
+        -A FisherStrand \
+        -A BaseQualityRankSumTest \
+        -A HaplotypeScore -A InbreedingCoeff \
+        -A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+        -A RMSMappingQuality -A ReadPosRankSumTest -A SpanningDeletions \
+        >> $outdir$ID"_tum_"$j"_GATK_log" 2>> $outdir$ID"_tum_"$j"_GATK_log" &
+done
+wait
+
+time13=$( date "+%s" )
+echo [elapsed time] $((($time13 - $time12)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+for j in {1..24}; do
+        cat $outdir$ID"_tum_"$j"_GATK_log" >> $outdir$ID"_tum_GATK_log"
+        rm -f $outdir$ID"_tum_"$j"_GATK_log"
+done
+
+echo "merging, filtering and phasing HC vcf files - tum" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants -R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_tum_"$j"_raw_snps-indels_HapCall.g.vcf.gz"; done) -out $outdir$ID"_tum_raw_snps-indels_HapCall.g.vcf.gz" -assumeSorted >> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+time14=$( date "+%s" )
+echo [elapsed time] $((($time14 - $time13)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+# Genotypes control and tumor gVCF files produced by the HaplotypeCaller
+# into a single joint VCF file.
+echo "GATK joint control and tumor gvcf genotyping and filtering" >> $outdir$ID"_muTect2_Job_Time.log"
+$java -Xmx100g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T GenotypeGVCFs \
+--variant $outdir$ID"_tum_raw_snps-indels_HapCall.g.vcf.gz" \
+--variant $outdir$ID"_raw_snps-indels_HapCall.g.vcf.gz" \
+-A Coverage \
+-A FisherStrand \
+-A BaseQualityRankSumTest \
+-A HaplotypeScore -A InbreedingCoeff \
+-A MappingQualityRankSumTest -A MappingQualityZero -A QualByDepth \
+-A RMSMappingQuality -A ReadPosRankSumTest \
+-o $outdir$ID"_tum_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+# filtro delle varianti
+# prima separo SNPs e indels
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-T SelectVariants \
+-R $reference \
+-V $outdir$ID"_tum_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+-selectType SNP \
+-o $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-T SelectVariants \
+-R $reference \
+-V $outdir$ID"_tum_raw_snps-indels_HapCall_genotype.g.vcf.gz" \
+-selectType INDEL \
+-o $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+# poi filtro
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T VariantFiltration \
+--variant $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_SNPs.g.vcf.gz" \
+-o $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz" \
+--filterExpression "QD < 2.0 || FS > 60.0 || SOR > 3.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
+--filterName "HARD_TO_VALIDATE" \
+--clusterWindowSize 10 \
+--filterExpression "QUAL < 30.0 " \
+--filterName "VeryLowQual" \
+--filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+--filterName "LowQual" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -jar $GATK_HOME"/GenomeAnalysisTK.jar" \
+-R $reference \
+-T VariantFiltration \
+--variant $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_INDELs.g.vcf.gz" \
+-o $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
+--filterExpression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
+--filterName "HARD_TO_VALIDATE" \
+--clusterWindowSize 10 \
+--filterExpression "QUAL < 30.0 " \
+--filterName "VeryLowQual" \
+--filterExpression "QUAL > 30.0 && QUAL < 100.0 " \
+--filterName "LowQual" \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+# rimetto insieme i 2 VCF
+# questo workaround e' necessario
+# perche' combineVariants crea problemi con le varianti separate nei due file, snp e indels
+# quindi lo posso usare sono nel caso di VQSR
+gunzip $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf.gz"
+gunzip $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz"
+$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
+-R $reference \
+-V $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_SNPs_filtered.g.vcf" \
+-V $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf" \
+-out $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf" -assumeSorted \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+# devo rifare il sorting perche' non trovo il modo per farglielo fare direttamente al GATK CatVariants
+# se non imposto -Duser.language=en con java 8 picard2 puo' non funzionare, a seconda delle impostazioni della macchina con cui fai il login su pico
+$java -Xmx4g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" SortVcf \
+I=$outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf" \
+O=$outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" SEQUENCE_DICTIONARY=$ref_dict \
+>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+# se non rimuovo l'index del vcf i comandi successivi di GATK non vedono il sorting
+rm -f $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf.idx" $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf.idx"
+# rinomino come il file iniziale
+mv $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered_sorted.g.vcf" $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+bgzip $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+tabix -p vcf $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+
+time15=$( date "+%s" )
+echo [elapsed time] $((($time15 - $time14)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+
+
+$bwakit"samtools" merge -@ 20 -f $outdir$ID"_aln_sort_nodup_recalc_final.bam" \
+$(for j in {1..24}; do echo $outdir$ID"_"$j"_aln_sort_nodup_recalc_final.bam"; done)
+$bwakit"samtools" index $outdir$ID"_aln_sort_nodup_recalc_final.bam"
+mv $outdir$ID"_aln_sort_nodup_recalc_final.bam.bai" $outdir$ID"_aln_sort_nodup_recalc_final.bai"
+
+sleep 20
+
+$bwakit"samtools" merge -@ 20 -f $outdir$ID"_tum_aln_sort_nodup_recalc_final.bam" \
+$(for j in {1..24}; do echo $outdir$ID"_tum_"$j"_aln_sort_nodup_recalc_final.bam"; done)
+$bwakit"samtools" index $outdir$ID"_tum_aln_sort_nodup_recalc_final.bam"
+mv $outdir$ID"_tum_aln_sort_nodup_recalc_final.bam.bai" $outdir$ID"_tum_aln_sort_nodup_recalc_final.bai"
+
+sleep 20
+
+time16=$( date "+%s" )
+
+# calcolo il coverage, poi siccome il file complessivo e' molto grande,
+# mantengo solo la parte riassuntiva
+# bisogna farlo sul file bam prima del bam processing con GATK, perche' poi
+# GATK fa i riallineamenti solo sulle regioni -L che gli passiamo
+if [ $coverBedTools == "y" ]
+	then
+	echo "BedTools: calculating depth of coverage" >> $outdir$ID"_muTect2_Job_Time.log"
+	$bedtools"coverageBed" -sorted -g $genomefile -b $outdir$ID"_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_global_coverage" 2>> $outdir$ID"_bedtools_log"
+	grep ^all $outdir$ID"_global_coverage" > $outdir$ID"_global_coverage_hist"
+	rm -f $outdir$ID"_global_coverage"
+	echo "coverageBed -sorted -g "$genomefile" -b" $outdir$ID"_aln_sort_nodup_recalc_final.bam -a" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_global_coverage" >> $outdir$ID"_bedtools_log"
+
+	$bedtools"coverageBed" -sorted -g $genomefile -b $outdir$ID"_tum_aln_sort_nodup_recalc_final.bam" -a $targetRegChipDir"/allchrs.bed" -hist > $outdir$ID"_tum_global_coverage" 2>> $outdir$ID"_tum_bedtools_log"
+	grep ^all $outdir$ID"_tum_global_coverage" > $outdir$ID"_tum_global_coverage_hist"
+	rm -f $outdir$ID"_tum_global_coverage"
+	echo "coverageBed -sorted -g "$genomefile" -b" $outdir$ID"_tum_aln_sort_nodup_recalc_final.bam -a" $targetRegChipDir"/allchrs.bed -hist > "$outdir$ID"_tum_global_coverage" >> $outdir$ID"_tum_bedtools_log"
+
+
+fi
+
+if [ $metrics == "y" ]
+then
+        echo "Calculating HsMetrics" >> $outdir$ID"_muTect2_Job_Time.log"
+        $java -Xmx64g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" CollectHsMetrics \
+        BI=$targetRegChipDir"/allchrs.interval_list" \
+        TI=$targetRegChipDir"/allchrs.interval_list" \
+        I=$outdir$ID"_aln_sort_nodup_recalc_final.bam" \
+        O=$outdir$ID"_ctrl_HsMetrics.txt" \
+        R=$reference \
+	>> $outdir$ID"_ctrl_GATK_log" 2>> $outdir$ID"_ctrl_GATK_log"
+
+        $java -Xmx64g -Duser.language=en -Djava.io.tmpdir=$tmpdir -jar $PICARD_HOME"picard.jar" CollectHsMetrics \
+        BI=$targetRegChipDir"/allchrs.interval_list" \
+        TI=$targetRegChipDir"/allchrs.interval_list" \
+        I=$outdir$ID"_tum_aln_sort_nodup_recalc_final.bam" \
+        O=$outdir$ID"_tum_HsMetrics.txt" \
+        R=$reference \
+	>> $outdir$ID"_tum_GATK_log" 2>> $outdir$ID"_tum_GATK_log"
+
+        time17=$( date "+%s" )
+        echo [elapsed time] $((($time17- $time16)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+fi
+
+time17=$( date "+%s" )
+
+# ripulisco dai file intermedi
+if [ -s $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" ]; then
+        for j in {1..24}; do
+                for z in ${ctrl_lane_id[@]}; do
+                        rm -f $outdir$ID"_"$j"_aln_sort_metrics_sample.txt"
+                        rm -f $outdir$ID"_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_"$z"_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_"$j"_raw_snps.vcf"*
+                        rm -f $outdir$ID"_"$j"_raw_snps-indels_HapCall"*".g.vcf"*
+                done
+        done
+else
+        echo "The script did not merge ctrl single chromosome files!" >> $outdir$ID"_muTect2_Job_Time.log"
+        echo "check "$outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" >> $outdir$ID"_muTect2_Job_Time.log"
+fi
+
+if [ -s $outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" ]; then
+        for j in {1..24}; do
+                for z in ${tum_lane_id[@]}; do
+                        rm -f $outdir$ID"_tum_"$j"_aln_sort_metrics_sample.txt"
+                        rm -f $outdir$ID"_tum_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_tum_"$z"_"$j"_aln_"*".ba"*
+                        rm -f $outdir$ID"_tum_"$j"_raw_snps.vcf"*
+                        rm -f $outdir$ID"_tum_"$j"_raw_snps-indels_HapCall"*".g.vcf"*
+                done
+        done
+else
+        echo "The script did not merge tum single chromosome files!" >> $outdir$ID"_muTect2_Job_Time.log"
+        echo "check "$outdir$ID"_tum_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" >> $outdir$ID"_muTect2_Job_Time.log"
+fi
+
+
+time18=$( date "+%s" )
+echo [Total time] $((($time18 - $time1)/60)) min >> $outdir$ID"_muTect2_Job_Time.log"
+date >> $outdir$ID"_muTect2_Job_Time.log"
+

@@ -344,7 +344,7 @@ if [ ${#member_name[@]} -eq 0 ]; then
 		-out $outdir$ID"_raw_snps-indels_HapCall_genotype_SNPs_VQSRfiltered.g.vcf.gz" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 		
 		$java -Xmx64g -Djava.io.tmpdir=$tmpdir -cp $GATK_HOME"/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
-		-R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz"; done) 
+		-R $reference $(for j in {1..24}; do echo "-V "$outdir$ID"_"$j"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz"; done) \
 		-out $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" -assumeSorted >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"		
 		
 		for j in {1..24}; do
@@ -667,10 +667,10 @@ else
                 -V $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_VQSRfiltered.g.vcf.gz" \
                 -o $outdir$ID"_raw_snps-indels_HapCall_genotype_INDELs_filtered.g.vcf.gz" \
                 -sn $ID \
-		--removeUnusedAlternates \
 		$(for sn in ${member_name[@]}; do echo "--sample_name "$sn; done) \
 		-env \
-                >> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
+                --removeUnusedAlternates \
+		>> $outdir$ID"_GATK_log" 2>> $outdir$ID"_GATK_log"
 
 		# unifico i due vcf
 	        # non posso usare catVariants perche' gli header
@@ -828,6 +828,13 @@ else
 	fi
 fi
 
+# in caso di estrazione dei genotipi a valle della VQSR si possono creare delle varianti chiamate con ALT allele "*", che devo eliminare prima dei passaggi di annotazione
+mv $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_complAlleles.g.vcf.gz"
+zgrep -v "	\*	" $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered_complAlleles.g.vcf.gz" > $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+bgzip $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf"
+tabix -p vcf $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz"
+
+
 time12=$( date "+%s" )
 echo [elapsed time] $((($time12 - $time11)/60)) min >> $outdir$ID"_Job_Time.log"
 
@@ -836,8 +843,8 @@ echo [elapsed time] $((($time12 - $time11)/60)) min >> $outdir$ID"_Job_Time.log"
 if [ $spidex == "y" ]
 then
 	#Creiamo il Job per l'annotazione con SPIDEX
-	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" $ID $outdir
-	qsub $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_job"
+	python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex_slurm.py $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g.vcf.gz" $ID $outdir
+	sbatch $outdir$ID"_raw_snps-indels_HapCall_genotype_filtered.g_spidex_job"
 fi
 
 if [ $somatic == "y" ]; then
@@ -872,8 +879,8 @@ if [ $somatic == "y" ]; then
         if [ $spidex == "y" ]
                 then
                 #Creiamo il Job per l'annotazione con SPIDEX per muTect2
-                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex.py $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" $ID $outdir
-                qsub $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
+                python /pico/work/IscrC_FoRWArDS_1/NGS_tools/prepare4spidex_all_slurm.py $outdir$ID"_muTect2_raw_snps-indels.vcf.gz" $ID $outdir
+                sbatch $outdir$ID"_muTect2_raw_snps-indels_spidex_job"
         fi
 	time12bis=$( date "+%s" )
 	echo [elapsed time] $((($time12bis - $time12)/60)) min >> $outdir$ID"_Job_Time.log"

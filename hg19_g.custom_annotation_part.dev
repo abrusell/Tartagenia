@@ -159,7 +159,7 @@ if [ $somatic == "y" ]; then
         java -Xmx64G -jar $SNPEFF_HOME"snpEff.jar" -v hg19 -i vcf -noStats -t -c $SNPEFF_HOME"snpEff.config" -interval $CpG_islands -interval $repeatMasker -interval $segmentDups -interval $TandemRep $outdir$ID"_muTect2_raw_snps-indels"$flag".g.dbSNP.vcf" > $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"  2>> $outdir$ID"_ANNOT_log"
 
         # estraggo il genename e vari effetti dal campo ANN=(*) di snpEFF perché quando ci sono più effetti (es. SPLICE_SITE+INTRON) manca il campo SNPEFF_GENE_NAME
-        python /pico/work/IscrC_FoRWArDS_1/NGS_tools/genenameEffFromSnpEff_4.2.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" 2>> $outdir$ID"_ANNOT_log"
+        python /pico/work/IscrC_FoRWArDS_1/NGS_tools/genenameEffFromSnpEff_4.3.py $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf" 2>> $outdir$ID"_ANNOT_log"
 
         # rinomino l'output con il nome file precedente
         mv $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.genenameEff.vcf" $outdir$ID"_muTect2_raw_snps-indels"$flag".g.SnpEff_UCSCAnnot.vcf"
